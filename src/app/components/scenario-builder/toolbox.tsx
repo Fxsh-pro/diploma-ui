@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
 import { nodeTypes } from "./node-types";
 import { cn } from "../ui/utils";
-import { Search, Folder } from "lucide-react";
+import { Search } from "lucide-react";
 import { useState } from "react";
 
 interface ToolboxProps {
@@ -17,6 +17,7 @@ export function Toolbox({ onNodeDragStart }: ToolboxProps) {
   );
 
   const categories = {
+    system: filteredNodes.filter((n) => n.category === 'system'),
     request: filteredNodes.filter((n) => n.category === 'request'),
     logic: filteredNodes.filter((n) => n.category === 'logic'),
     control: filteredNodes.filter((n) => n.category === 'control'),
@@ -38,6 +39,35 @@ export function Toolbox({ onNodeDragStart }: ToolboxProps) {
         </div>
       </CardHeader>
       <CardContent className="flex-1 overflow-y-auto space-y-4 pb-4">
+        {/* System Nodes */}
+        {categories.system.length > 0 && (
+          <div>
+            <h4 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
+              <span>System Nodes</span>
+            </h4>
+            <div className="space-y-1.5">
+              {categories.system.map((node) => {
+                const Icon = node.icon;
+                return (
+                  <div
+                    key={node.id}
+                    draggable
+                    onDragStart={() => onNodeDragStart?.(node.type)}
+                    className={cn(
+                      "flex items-center gap-2 p-2 rounded-md border border-border bg-card cursor-move hover:bg-accent/50 transition-colors"
+                    )}
+                  >
+                    <div className={cn("flex h-7 w-7 items-center justify-center rounded text-white", node.color)}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <span className="text-sm font-medium">{node.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Request Nodes */}
         {categories.request.length > 0 && (
           <div>
@@ -125,20 +155,6 @@ export function Toolbox({ onNodeDragStart }: ToolboxProps) {
           </div>
         )}
 
-        {/* Groups Section */}
-        <div className="pt-2 border-t border-border">
-          <h4 className="text-xs font-semibold text-muted-foreground mb-2">
-            Groups
-          </h4>
-          <div
-            className="flex items-center gap-2 p-2 rounded-md border border-border bg-card cursor-pointer hover:bg-accent/50 transition-colors"
-          >
-            <div className="flex h-7 w-7 items-center justify-center rounded bg-muted">
-              <Folder className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <span className="text-sm font-medium">New Group</span>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );

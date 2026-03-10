@@ -245,6 +245,10 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
     setDraggedNodeType(null);
   };
 
+  const handleNodeMove = (id: string, x: number, y: number) => {
+    setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n)));
+  };
+
   const handleDeleteNode = () => {
     if (!selectedNodeId) return;
     setNodes((prev) => prev.filter((n) => n.id !== selectedNodeId));
@@ -320,6 +324,7 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
             selectedNodeId={selectedNodeId || undefined}
             onNodeSelect={setSelectedNodeId}
             onAddNode={handleAddNode}
+            onNodeMove={handleNodeMove}
             draggedNodeType={draggedNodeType}
           />
         </div>

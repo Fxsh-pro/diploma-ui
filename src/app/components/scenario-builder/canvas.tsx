@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { CanvasNode } from "./canvas-node";
 import { Button } from "../ui/button";
 import { ZoomIn, ZoomOut, Maximize2, Undo, Redo, Zap } from "lucide-react";
@@ -24,16 +24,21 @@ interface CanvasProps {
   selectedNodeId?: string;
   onNodeSelect?: (id: string) => void;
   onAddNode?: (type: string, x: number, y: number) => void;
+  onNodeMove?: (id: string, x: number, y: number) => void;
   draggedNodeType?: string | null;
 }
 
-export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, draggedNodeType }: CanvasProps) {
+export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, onNodeMove, draggedNodeType }: CanvasProps) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
   const fittedRef = useRef(false);
+
+  // Node dragging state
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const dragStartRef = useRef<{ nodeX: number; nodeY: number; mouseX: number; mouseY: number } | null>(null);
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -49,7 +54,31 @@ export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, 
     }
   };
 
+  const handleNodeDragStart = useCallback((nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const node = nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+    setDraggingNodeId(nodeId);
+    dragStartRef.current = {
+      nodeX: node.x,
+      nodeY: node.y,
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+    };
+  }, [nodes]);
+
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (draggingNodeId && dragStartRef.current) {
+      const dx = (e.clientX - dragStartRef.current.mouseX) / zoom;
+      const dy = (e.clientY - dragStartRef.current.mouseY) / zoom;
+      onNodeMove?.(
+        draggingNodeId,
+        dragStartRef.current.nodeX + dx,
+        dragStartRef.current.nodeY + dy,
+      );
+      return;
+    }
     if (isPanning) {
       setPan({
         x: e.clientX - startPan.x,
@@ -60,6 +89,8 @@ export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, 
 
   const handleMouseUp = () => {
     setIsPanning(false);
+    setDraggingNodeId(null);
+    dragStartRef.current = null;
   };
 
   const handleFitToView = () => {
@@ -255,6 +286,7 @@ export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, 
               data={node.data}
               isSelected={selectedNodeId === node.id}
               onClick={() => onNodeSelect?.(node.id)}
+              onDragStart={(e) => handleNodeDragStart(node.id, e)}
             />
           ))}
         </div>

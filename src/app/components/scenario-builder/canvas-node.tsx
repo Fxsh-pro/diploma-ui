@@ -9,15 +9,16 @@ interface CanvasNodeProps {
   data?: any;
   isSelected?: boolean;
   onClick?: () => void;
+  onDragStart?: (e: React.MouseEvent) => void;
 }
 
-export function CanvasNode({ id, type, x, y, data, isSelected, onClick }: CanvasNodeProps) {
+export function CanvasNode({ id, type, x, y, data, isSelected, onClick, onDragStart }: CanvasNodeProps) {
   if (type === 'start') {
     return (
       <div
-        className={cn("absolute cursor-pointer", isSelected && "ring-2 ring-primary ring-offset-2 rounded-lg")}
+        className={cn("absolute cursor-move", isSelected && "ring-2 ring-primary ring-offset-2 rounded-lg")}
         style={{ left: x, top: y }}
-        onMouseDown={(e) => e.stopPropagation()}
+        onMouseDown={onDragStart}
         onClick={onClick}
       >
         <div className="relative flex items-center justify-center h-12 w-32 rounded-lg bg-success text-success-foreground font-semibold shadow-md">
@@ -31,9 +32,9 @@ export function CanvasNode({ id, type, x, y, data, isSelected, onClick }: Canvas
   if (type === 'terminal') {
     return (
       <div
-        className={cn("absolute cursor-pointer", isSelected && "ring-2 ring-primary ring-offset-2 rounded-lg")}
+        className={cn("absolute cursor-move", isSelected && "ring-2 ring-primary ring-offset-2 rounded-lg")}
         style={{ left: x, top: y }}
-        onMouseDown={(e) => e.stopPropagation()}
+        onMouseDown={onDragStart}
         onClick={onClick}
       >
         <div className="relative flex items-center justify-center h-12 w-32 rounded-lg bg-destructive text-destructive-foreground font-semibold shadow-md">
@@ -52,11 +53,11 @@ export function CanvasNode({ id, type, x, y, data, isSelected, onClick }: Canvas
   return (
     <div
       className={cn(
-        "absolute cursor-pointer transition-all",
+        "absolute cursor-move transition-all",
         isSelected && "ring-2 ring-primary ring-offset-2"
       )}
       style={{ left: x, top: y }}
-      onMouseDown={(e) => e.stopPropagation()}
+      onMouseDown={onDragStart}
       onClick={onClick}
     >
       <div className="min-w-[200px] rounded-lg border-2 border-border bg-card shadow-md hover:shadow-lg transition-shadow">
@@ -86,21 +87,6 @@ export function CanvasNode({ id, type, x, y, data, isSelected, onClick }: Canvas
           {type === 'check' && (
             <div className="font-mono text-foreground">
               {data?.condition || 'Status code = 200'}
-            </div>
-          )}
-          {type === 'data' && (
-            <div className="font-mono text-foreground">
-              Extract: {data?.variable || 'variable'}
-            </div>
-          )}
-          {type === 'split' && (
-            <div className="font-mono text-foreground">
-              Probability Split
-            </div>
-          )}
-          {type === 'loop' && (
-            <div className="font-mono text-foreground">
-              Max iterations: {data?.iterations || 5}
             </div>
           )}
         </div>
