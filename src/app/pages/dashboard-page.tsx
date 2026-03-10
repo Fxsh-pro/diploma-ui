@@ -12,9 +12,10 @@ interface DashboardPageProps {
   onViewRun?: (runId: string) => void;
   onCreateScenario?: () => void;
   onEditScenario?: (id: string) => void;
+  onShowAllTests?: () => void;
 }
 
-export function DashboardPage({ onViewRun, onCreateScenario, onEditScenario }: DashboardPageProps) {
+export function DashboardPage({ onViewRun, onCreateScenario, onEditScenario, onShowAllTests }: DashboardPageProps) {
   const [runningCount, setRunningCount] = useState<number | null>(null);
   const [agentStats, setAgentStats] = useState<{ online: number; total: number } | null>(null);
   const [scenarioCount, setScenarioCount] = useState<number | null>(null);
@@ -72,7 +73,7 @@ export function DashboardPage({ onViewRun, onCreateScenario, onEditScenario }: D
         />
       </div>
 
-      <ActiveTestsTable onView={onViewRun} />
+      <ActiveTestsTable onView={onViewRun} onShowAll={onShowAllTests} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <RecentScenarios onCreateNew={onCreateScenario} onEdit={onEditScenario} />

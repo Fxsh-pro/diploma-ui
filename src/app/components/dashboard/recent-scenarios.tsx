@@ -21,14 +21,15 @@ function nodeCount(scenario: ScenarioResponse): number {
 interface RecentScenariosProps {
   onCreateNew?: () => void;
   onEdit?: (id: string) => void;
+  limit?: number;
 }
 
-export function RecentScenarios({ onCreateNew, onEdit }: RecentScenariosProps) {
+export function RecentScenarios({ onCreateNew, onEdit, limit = 5 }: RecentScenariosProps) {
   const [scenarios, setScenarios] = useState<ScenarioResponse[]>([]);
 
   useEffect(() => {
-    scenariosApi.list().then((list) => setScenarios(list.slice(0, 5))).catch(() => {});
-  }, []);
+    scenariosApi.list().then((list) => setScenarios(limit > 0 ? list.slice(0, limit) : list)).catch(() => {});
+  }, [limit]);
 
   const handleDelete = async (id: string) => {
     await scenariosApi.delete(id).catch(() => {});

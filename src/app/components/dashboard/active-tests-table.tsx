@@ -15,9 +15,14 @@ import { runsApi } from "../../../api/runs";
 import { scenariosApi } from "../../../api/scenarios";
 import type { TestRunResponse, ScenarioResponse } from "../../../api/types";
 
-function elapsed(startedAt: string | null): string {
-  if (!startedAt) return '—';
-  const secs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+const TERMINAL = new Set(['COMPLETED', 'DONE', 'FAILED', 'STOPPED']);
+
+function elapsed(run: TestRunResponse): string {
+  if (!run.startedAt) return '—';
+  const end = run.finishedAt && TERMINAL.has(run.status)
+    ? new Date(run.finishedAt).getTime()
+    : Date.now();
+  const secs = Math.floor((end - new Date(run.startedAt).getTime()) / 1000);
   const m = Math.floor(secs / 60);
   const s = secs % 60;
   return `${m}m ${String(s).padStart(2, '0')}s`;
@@ -25,20 +30,38 @@ function elapsed(startedAt: string | null): string {
 
 interface ActiveTestsTableProps {
   onView?: (runId: string) => void;
+  showAll?: boolean;
+  onShowAll?: () => void;
 }
 
-export function ActiveTestsTable({ onView }: ActiveTestsTableProps) {
+function runStatusBadge(status: string) {
+  if (status === 'RUNNING') return <StatusBadge status="running">🟣 Running</StatusBadge>;
+  if (status === 'PENDING') return <StatusBadge status="warning">⏳ Pending</StatusBadge>;
+  if (status === 'COMPLETED' || status === 'DONE') return <StatusBadge status="completed">✓ Completed</StatusBadge>;
+  if (status === 'FAILED') return <StatusBadge status="failed">✗ Failed</StatusBadge>;
+  if (status === 'STOPPED') return <StatusBadge status="idle">⏹ Stopped</StatusBadge>;
+  return <StatusBadge status="idle">{status}</StatusBadge>;
+}
+
+export function ActiveTestsTable({ onView, showAll = false, onShowAll }: ActiveTestsTableProps) {
   const [runs, setRuns] = useState<TestRunResponse[]>([]);
   const [scenarios, setScenarios] = useState<Record<string, ScenarioResponse>>({});
 
   const fetchData = async () => {
     try {
-      const [active, pending, allScenarios] = await Promise.all([
-        runsApi.list('RUNNING'),
-        runsApi.list('PENDING'),
-        scenariosApi.list(),
-      ]);
-      setRuns([...active, ...pending]);
+      let fetchedRuns: TestRunResponse[];
+      if (showAll) {
+        fetchedRuns = await runsApi.list();
+        fetchedRuns.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      } else {
+        const [active, pending] = await Promise.all([
+          runsApi.list('RUNNING'),
+          runsApi.list('PENDING'),
+        ]);
+        fetchedRuns = [...active, ...pending];
+      }
+      const allScenarios = await scenariosApi.list();
+      setRuns(fetchedRuns);
       const map: Record<string, ScenarioResponse> = {};
       allScenarios.forEach((s) => { map[s.id] = s; });
       setScenarios(map);
@@ -61,8 +84,8 @@ export function ActiveTestsTable({ onView }: ActiveTestsTableProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Выполняемые тесты</h3>
-        <Button variant="link" className="text-sm">Показать все</Button>
+        <h3 className="text-lg font-semibold">{showAll ? 'Все тесты' : 'Выполняемые тесты'}</h3>
+        {!showAll && <Button variant="link" className="text-sm" onClick={onShowAll}>Показать все</Button>}
       </div>
 
       <div className="rounded-lg border border-border bg-card">
@@ -80,7 +103,7 @@ export function ActiveTestsTable({ onView }: ActiveTestsTableProps) {
             {runs.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                  Нет активных тестов
+                  {showAll ? 'Нет тестов' : 'Нет активных тестов'}
                 </TableCell>
               </TableRow>
             ) : (
@@ -92,22 +115,20 @@ export function ActiveTestsTable({ onView }: ActiveTestsTableProps) {
                       {scenarios[run.scenarioId]?.name ?? run.scenarioId.slice(0, 8) + '…'}
                     </Badge>
                   </TableCell>
+                  <TableCell>{runStatusBadge(run.status)}</TableCell>
                   <TableCell>
-                    <StatusBadge status={run.status === 'RUNNING' ? 'running' : 'warning'}>
-                      {run.status === 'RUNNING' ? '🟣 Running' : '⏳ Pending'}
-                    </StatusBadge>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-muted-foreground font-mono text-sm">{elapsed(run.startedAt)}</span>
+                    <span className="text-muted-foreground font-mono text-sm">{elapsed(run)}</span>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => onView?.(run.id)}>
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleStop(run.id)}>
-                        <Square className="h-4 w-4" />
-                      </Button>
+                      {!TERMINAL.has(run.status) && (
+                        <Button variant="ghost" size="icon" onClick={() => handleStop(run.id)}>
+                          <Square className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

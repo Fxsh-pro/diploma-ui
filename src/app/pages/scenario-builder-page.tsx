@@ -1,42 +1,117 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ArrowLeft, Save, Play, Settings } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Toolbox } from "../components/scenario-builder/toolbox";
 import { Canvas } from "../components/scenario-builder/canvas";
 import { PropertiesPanel } from "../components/scenario-builder/properties-panel";
-import { ScenarioNode } from "../components/scenario-builder/node-types";
+import type { ScenarioNode } from "../components/scenario-builder/node-types";
+import { scenariosApi } from "../../api/scenarios";
+import type { ScenarioNodeDto, ScenarioGraphDto } from "../../api/types";
 
-export function ScenarioBuilderPage({ onBack }: { onBack: () => void }) {
-  const [nodes, setNodes] = useState<ScenarioNode[]>([
-    {
-      id: "1",
-      type: "http",
-      x: 100,
-      y: 150,
-      data: { method: "GET", url: "/api/products", status: 200 },
-    },
-    {
-      id: "2",
-      type: "delay",
-      x: 100,
-      y: 280,
-      data: { duration: "2s" },
-    },
-    {
-      id: "3",
-      type: "split",
-      x: 100,
-      y: 410,
-      data: {},
-    },
-  ]);
+interface ScenarioBuilderPageProps {
+  scenarioId?: string;
+  onBack: () => void;
+}
+
+// Map API node types to canvas node types
+function apiTypeToCanvas(type: string): ScenarioNode['type'] {
+  switch (type) {
+    case 'HTTP':  return 'http';
+    case 'DELAY': return 'delay';
+    case 'CHECK': return 'check';
+    default:      return 'http';
+  }
+}
+
+// Convert API graph nodes to canvas nodes (skip START/TERMINAL, auto-layout)
+function graphToCanvasNodes(graph: ScenarioGraphDto): ScenarioNode[] {
+  const skip = new Set(['START', 'TERMINAL']);
+  const nodes = Object.values(graph.nodes).filter((n) => !skip.has(n.type));
+  return nodes.map((n, i) => ({
+    id: String(n.id),
+    type: apiTypeToCanvas(n.type),
+    x: 100,
+    y: 150 + i * 130,
+    data: n.type === 'HTTP'
+      ? { method: n.config.method, url: n.config.url, headers: n.config.headers, body: n.config.body }
+      : n.type === 'DELAY'
+      ? { duration: n.thinkTimeMs + 'ms' }
+      : {},
+  }));
+}
+
+// Convert canvas nodes back to API graph
+function canvasNodesToGraph(nodes: ScenarioNode[], original?: ScenarioGraphDto): ScenarioGraphDto {
+  const apiNodes: Record<string, ScenarioNodeDto> = {};
+  const edges: ScenarioGraphDto['edges'] = [];
+
+  // START node
+  apiNodes['1'] = {
+    id: 1, type: 'START', name: 'Start',
+    config: { method: '', url: '', headers: {}, body: '' },
+    extract: [], thinkTimeMs: 0,
+  };
+
+  nodes.forEach((n, i) => {
+    const id = i + 2;
+    apiNodes[String(id)] = {
+      id,
+      type: n.type === 'http' ? 'HTTP' : n.type === 'delay' ? 'DELAY' : n.type === 'check' ? 'CHECK' : 'HTTP',
+      name: n.type === 'http' ? `${n.data.method || 'GET'} ${n.data.url || ''}` : n.type === 'delay' ? 'Delay' : 'Check',
+      config: n.type === 'http'
+        ? { method: n.data.method || 'GET', url: n.data.url || '', headers: n.data.headers || {}, body: n.data.body || '' }
+        : { method: '', url: '', headers: {}, body: '' },
+      extract: [],
+      thinkTimeMs: n.type === 'delay' ? parseInt(n.data.duration ?? '0') : 0,
+    };
+  });
+
+  const terminalId = nodes.length + 2;
+  apiNodes[String(terminalId)] = {
+    id: terminalId, type: 'TERMINAL', name: 'End',
+    config: { method: '', url: '', headers: {}, body: '' },
+    extract: [], thinkTimeMs: 0,
+  };
+
+  // START → first node
+  if (nodes.length > 0) {
+    edges.push({ from: 1, to: 2, weight: 1 });
+    // chain through all nodes
+    for (let i = 2; i < nodes.length + 2; i++) {
+      edges.push({ from: i, to: i + 1, weight: 1 });
+    }
+  } else {
+    edges.push({ from: 1, to: terminalId, weight: 1 });
+  }
+
+  return {
+    startNodeId: 1,
+    terminalNodeIds: [terminalId],
+    nodes: apiNodes,
+    edges,
+  };
+}
+
+export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageProps) {
+  const [nodes, setNodes] = useState<ScenarioNode[]>([]);
+  const [scenarioName, setScenarioName] = useState('Новый сценарий');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [draggedNodeType, setDraggedNodeType] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!scenarioId) return;
+    scenariosApi.get(scenarioId).then((scenario) => {
+      setScenarioName(scenario.name);
+      setNodes(graphToCanvasNodes(scenario.graph));
+    }).catch(() => {});
+  }, [scenarioId]);
 
   const handleAddNode = (type: string, x: number, y: number) => {
     const newNode: ScenarioNode = {
       id: Date.now().toString(),
-      type: type as any,
+      type: type as ScenarioNode['type'],
       x,
       y,
       data: {},
@@ -52,6 +127,25 @@ export function ScenarioBuilderPage({ onBack }: { onBack: () => void }) {
     }
   };
 
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const graph = canvasNodesToGraph(nodes);
+      if (scenarioId) {
+        await scenariosApi.update(scenarioId, { name: scenarioName, graph });
+      } else {
+        await scenariosApi.create({ name: scenarioName, graph });
+      }
+      setSaveMsg('Сохранено');
+      setTimeout(() => setSaveMsg(null), 2000);
+    } catch {
+      setSaveMsg('Ошибка сохранения');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
 
   return (
@@ -63,18 +157,21 @@ export function ScenarioBuilderPage({ onBack }: { onBack: () => void }) {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="font-semibold">Shopping Cart Scenario</h1>
-            <p className="text-xs text-muted-foreground">Last saved 2 minutes ago</p>
+            <h1 className="font-semibold">{scenarioName}</h1>
+            <p className="text-xs text-muted-foreground">
+              {scenarioId ? 'Редактирование сценария' : 'Новый сценарий'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {saveMsg && <span className="text-sm text-muted-foreground">{saveMsg}</span>}
           <Button variant="outline" className="gap-2">
             <Settings className="h-4 w-4" />
             Settings
           </Button>
-          <Button variant="secondary" className="gap-2">
+          <Button variant="secondary" className="gap-2" onClick={handleSave} disabled={saving}>
             <Save className="h-4 w-4" />
-            Save
+            {saving ? 'Сохранение…' : 'Сохранить'}
           </Button>
           <Button className="gap-2">
             <Play className="h-4 w-4" />

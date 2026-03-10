@@ -8,6 +8,8 @@ import { ReportsPage } from "./pages/reports-page";
 import { AgentsPage } from "./pages/agents-page";
 import { SettingsPage } from "./pages/settings-page";
 import { TestConfigModal } from "./components/test-config-modal";
+import { RecentScenarios } from "./components/dashboard/recent-scenarios";
+import { ActiveTestsTable } from "./components/dashboard/active-tests-table";
 import { Toaster } from "./components/ui/sonner";
 
 export default function App() {
@@ -18,6 +20,7 @@ export default function App() {
   const [activePage, setActivePage] = useState("dashboard");
   const [isSideNavOpen, setIsSideNavOpen] = useState(false);
   const [showScenarioBuilder, setShowScenarioBuilder] = useState(false);
+  const [editingScenarioId, setEditingScenarioId] = useState<string | null>(null);
   const [showTestExecution, setShowTestExecution] = useState(false);
   const [showTestConfig, setShowTestConfig] = useState(false);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
@@ -27,8 +30,14 @@ export default function App() {
   const handleNavigate = (page: string) => {
     setActivePage(page);
     setShowScenarioBuilder(false);
+    setEditingScenarioId(null);
     setShowTestExecution(false);
     setActiveRunId(null);
+  };
+
+  const handleEditScenario = (id: string) => {
+    setEditingScenarioId(id);
+    setShowScenarioBuilder(true);
   };
 
   const handleStartTest = (runId: string) => {
@@ -42,7 +51,12 @@ export default function App() {
   };
 
   if (showScenarioBuilder) {
-    return <ScenarioBuilderPage onBack={() => setShowScenarioBuilder(false)} />;
+    return (
+      <ScenarioBuilderPage
+        scenarioId={editingScenarioId ?? undefined}
+        onBack={() => { setShowScenarioBuilder(false); setEditingScenarioId(null); }}
+      />
+    );
   }
 
   if (showTestExecution && activeRunId) {
@@ -79,8 +93,9 @@ export default function App() {
           {activePage === "dashboard" && (
             <DashboardPage
               onViewRun={handleViewRun}
-              onCreateScenario={() => setShowScenarioBuilder(true)}
-              onEditScenario={() => setShowScenarioBuilder(true)}
+              onCreateScenario={() => { setEditingScenarioId(null); setShowScenarioBuilder(true); }}
+              onEditScenario={handleEditScenario}
+              onShowAllTests={() => handleNavigate('tests')}
             />
           )}
 
@@ -100,6 +115,11 @@ export default function App() {
                   Создать сценарий
                 </button>
               </div>
+              <RecentScenarios
+                limit={0}
+                onCreateNew={() => { setEditingScenarioId(null); setShowScenarioBuilder(true); }}
+                onEdit={handleEditScenario}
+              />
             </div>
           )}
 
@@ -117,6 +137,7 @@ export default function App() {
                   Новый тест
                 </button>
               </div>
+              <ActiveTestsTable showAll onView={handleViewRun} />
             </div>
           )}
 
