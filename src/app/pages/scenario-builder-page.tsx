@@ -4,96 +4,219 @@ import { Button } from "../components/ui/button";
 import { Toolbox } from "../components/scenario-builder/toolbox";
 import { Canvas } from "../components/scenario-builder/canvas";
 import { PropertiesPanel } from "../components/scenario-builder/properties-panel";
-import type { ScenarioNode } from "../components/scenario-builder/node-types";
+import type { ScenarioNode, NodeConnection } from "../components/scenario-builder/node-types";
 import { scenariosApi } from "../../api/scenarios";
-import type { ScenarioNodeDto, ScenarioGraphDto } from "../../api/types";
+import type { ScenarioNodeDto, ScenarioEdgeDto, ScenarioGraphDto } from "../../api/types";
 
 interface ScenarioBuilderPageProps {
   scenarioId?: string;
   onBack: () => void;
 }
 
-// Map API node types to canvas node types
+// ─── Type mapping ─────────────────────────────────────────────────────────────
+
 function apiTypeToCanvas(type: string): ScenarioNode['type'] {
   switch (type) {
-    case 'HTTP':  return 'http';
-    case 'DELAY': return 'delay';
-    case 'CHECK': return 'check';
-    default:      return 'http';
+    case 'START':    return 'start';
+    case 'HTTP':     return 'http';
+    case 'DELAY':    return 'delay';
+    case 'CHECK':    return 'check';
+    case 'TERMINAL': return 'terminal';
+    default:         return 'http';
   }
 }
 
-// Convert API graph nodes to canvas nodes (skip START/TERMINAL, auto-layout)
-function graphToCanvasNodes(graph: ScenarioGraphDto): ScenarioNode[] {
-  const skip = new Set(['START', 'TERMINAL']);
-  const nodes = Object.values(graph.nodes).filter((n) => !skip.has(n.type));
-  return nodes.map((n, i) => ({
-    id: String(n.id),
-    type: apiTypeToCanvas(n.type),
-    x: 100,
-    y: 150 + i * 130,
-    data: n.type === 'HTTP'
-      ? { method: n.config.method, url: n.config.url, headers: n.config.headers, body: n.config.body }
-      : n.type === 'DELAY'
-      ? { duration: n.thinkTimeMs + 'ms' }
-      : {},
-  }));
+function canvasTypeToApi(type: ScenarioNode['type']): string {
+  switch (type) {
+    case 'start':    return 'START';
+    case 'terminal': return 'TERMINAL';
+    case 'http':     return 'HTTP';
+    case 'delay':    return 'DELAY';
+    case 'check':    return 'CHECK';
+    default:         return 'HTTP';
+  }
 }
 
-// Convert canvas nodes back to API graph
-function canvasNodesToGraph(nodes: ScenarioNode[], original?: ScenarioGraphDto): ScenarioGraphDto {
-  const apiNodes: Record<string, ScenarioNodeDto> = {};
-  const edges: ScenarioGraphDto['edges'] = [];
+// ─── Auto-layout (BFS layering) ───────────────────────────────────────────────
 
-  // START node
-  apiNodes['1'] = {
-    id: 1, type: 'START', name: 'Start',
-    config: { method: '', url: '', headers: {}, body: '' },
-    extract: [], thinkTimeMs: 0,
-  };
+function computeAutoLayout(
+  apiNodes: ScenarioNodeDto[],
+  apiEdges: ScenarioEdgeDto[],
+): Map<number, { x: number; y: number }> {
+  const children = new Map<number, number[]>();
+  const inDegree = new Map<number, number>();
+  for (const n of apiNodes) {
+    children.set(n.id, []);
+    inDegree.set(n.id, 0);
+  }
+  for (const e of apiEdges) {
+    children.get(e.from)?.push(e.to);
+    inDegree.set(e.to, (inDegree.get(e.to) ?? 0) + 1);
+  }
 
-  nodes.forEach((n, i) => {
-    const id = i + 2;
-    apiNodes[String(id)] = {
-      id,
-      type: n.type === 'http' ? 'HTTP' : n.type === 'delay' ? 'DELAY' : n.type === 'check' ? 'CHECK' : 'HTTP',
-      name: n.type === 'http' ? `${n.data.method || 'GET'} ${n.data.url || ''}` : n.type === 'delay' ? 'Delay' : 'Check',
-      config: n.type === 'http'
-        ? { method: n.data.method || 'GET', url: n.data.url || '', headers: n.data.headers || {}, body: n.data.body || '' }
-        : { method: '', url: '', headers: {}, body: '' },
-      extract: [],
-      thinkTimeMs: n.type === 'delay' ? parseInt(n.data.duration ?? '0') : 0,
+  // Kahn's topological sort — assign max depth (longest path from root)
+  const layer = new Map<number, number>();
+  const tempDeg = new Map(inDegree);
+  const queue: number[] = [];
+  for (const [id, deg] of tempDeg) {
+    if (deg === 0) { queue.push(id); layer.set(id, 0); }
+  }
+  while (queue.length > 0) {
+    const curr = queue.shift()!;
+    for (const next of children.get(curr) ?? []) {
+      const newLayer = (layer.get(curr) ?? 0) + 1;
+      layer.set(next, Math.max(layer.get(next) ?? 0, newLayer));
+      tempDeg.set(next, tempDeg.get(next)! - 1);
+      if (tempDeg.get(next) === 0) queue.push(next);
+    }
+  }
+
+  // Group by layer
+  const byLayer = new Map<number, number[]>();
+  for (const [id, l] of layer) {
+    if (!byLayer.has(l)) byLayer.set(l, []);
+    byLayer.get(l)!.push(id);
+  }
+
+  const LAYER_DX = 280;
+  const NODE_DY = 150;
+  const maxInLayer = Math.max(...[...byLayer.values()].map((v) => v.length));
+  const totalH = (maxInLayer - 1) * NODE_DY;
+
+  const positions = new Map<number, { x: number; y: number }>();
+  for (const [l, ids] of byLayer) {
+    const colH = (ids.length - 1) * NODE_DY;
+    const yOffset = (totalH - colH) / 2;
+    ids.forEach((id, i) => {
+      positions.set(id, { x: l * LAYER_DX, y: yOffset + i * NODE_DY });
+    });
+  }
+  return positions;
+}
+
+// ─── Graph ↔ Canvas conversion ────────────────────────────────────────────────
+
+function graphToCanvas(graph: ScenarioGraphDto): { nodes: ScenarioNode[]; edges: NodeConnection[] } {
+  const apiNodes = Object.values(graph.nodes);
+
+  // Use stored x/y if all non-START/TERMINAL nodes have them; otherwise auto-layout
+  const userNodes = apiNodes.filter((n) => n.type !== 'START' && n.type !== 'TERMINAL');
+  const hasStored = userNodes.length > 0 && userNodes.every((n) => n.x != null && n.y != null);
+  const autoPos = hasStored ? null : computeAutoLayout(apiNodes, graph.edges);
+
+  const nodes: ScenarioNode[] = apiNodes.map((n) => {
+    const x = (n.x != null && hasStored) ? n.x : (autoPos?.get(n.id)?.x ?? 0);
+    const y = (n.y != null && hasStored) ? n.y : (autoPos?.get(n.id)?.y ?? 0);
+    return {
+      id: String(n.id),
+      type: apiTypeToCanvas(n.type),
+      x,
+      y,
+      data: n.type === 'HTTP'
+        ? { method: n.config.method, url: n.config.url, headers: n.config.headers, body: n.config.body }
+        : n.type === 'DELAY'
+        ? { duration: n.thinkTimeMs + 'ms' }
+        : {},
     };
   });
 
-  const terminalId = nodes.length + 2;
-  apiNodes[String(terminalId)] = {
-    id: terminalId, type: 'TERMINAL', name: 'End',
-    config: { method: '', url: '', headers: {}, body: '' },
-    extract: [], thinkTimeMs: 0,
-  };
+  const edges: NodeConnection[] = graph.edges.map((e, i) => ({
+    id: `e-${i}`,
+    from: String(e.from),
+    to: String(e.to),
+    weight: e.weight,
+  }));
 
-  // START → first node
-  if (nodes.length > 0) {
-    edges.push({ from: 1, to: 2, weight: 1 });
-    // chain through all nodes
-    for (let i = 2; i < nodes.length + 2; i++) {
-      edges.push({ from: i, to: i + 1, weight: 1 });
-    }
+  return { nodes, edges };
+}
+
+function canvasToGraph(nodes: ScenarioNode[], edges: NodeConnection[]): ScenarioGraphDto {
+  const apiNodes: Record<string, ScenarioNodeDto> = {};
+
+  for (const n of nodes) {
+    const id = parseInt(n.id);
+    if (isNaN(id)) continue;
+
+    const name =
+      n.type === 'http'     ? `${n.data?.method || 'GET'} ${n.data?.url || ''}` :
+      n.type === 'delay'    ? 'Delay' :
+      n.type === 'check'    ? 'Check' :
+      n.type === 'start'    ? 'Start' :
+      n.type === 'terminal' ? 'End' : n.type;
+
+    apiNodes[String(id)] = {
+      id,
+      type: canvasTypeToApi(n.type) as any,
+      name,
+      config: n.type === 'http'
+        ? { method: n.data?.method || 'GET', url: n.data?.url || '', headers: n.data?.headers || {}, body: n.data?.body || '' }
+        : { method: '', url: '', headers: {}, body: '' },
+      extract: [],
+      thinkTimeMs: n.type === 'delay' ? parseInt(n.data?.duration ?? '0') : 0,
+      x: n.x,
+      y: n.y,
+    };
+  }
+
+  // Ensure START node exists
+  const startNode = nodes.find((n) => n.type === 'start');
+  let startId = startNode ? parseInt(startNode.id) : 1;
+  if (!startNode) {
+    apiNodes['1'] = {
+      id: 1, type: 'START' as any, name: 'Start',
+      config: { method: '', url: '', headers: {}, body: '' },
+      extract: [], thinkTimeMs: 0,
+    };
+    startId = 1;
+  }
+
+  // Ensure TERMINAL node exists
+  const terminalNodes = nodes.filter((n) => n.type === 'terminal');
+  let terminalIds = terminalNodes.map((n) => parseInt(n.id));
+  if (terminalNodes.length === 0) {
+    const maxId = Math.max(1, ...Object.keys(apiNodes).map(Number)) + 1;
+    apiNodes[String(maxId)] = {
+      id: maxId, type: 'TERMINAL' as any, name: 'End',
+      config: { method: '', url: '', headers: {}, body: '' },
+      extract: [], thinkTimeMs: 0,
+    };
+    terminalIds = [maxId];
+  }
+
+  // Build edges: use stored edges if available, else sequential fallback
+  let apiEdges: ScenarioEdgeDto[];
+  if (edges.length > 0) {
+    apiEdges = edges
+      .map((e) => ({ from: parseInt(e.from), to: parseInt(e.to), weight: e.weight ?? 1 }))
+      .filter((e) => !isNaN(e.from) && !isNaN(e.to));
   } else {
-    edges.push({ from: 1, to: terminalId, weight: 1 });
+    // Sequential fallback for new scenarios without edges
+    const userNodes = nodes.filter((n) => n.type !== 'start' && n.type !== 'terminal');
+    apiEdges = [];
+    if (userNodes.length > 0) {
+      apiEdges.push({ from: startId, to: parseInt(userNodes[0].id), weight: 1 });
+      for (let i = 0; i < userNodes.length - 1; i++) {
+        apiEdges.push({ from: parseInt(userNodes[i].id), to: parseInt(userNodes[i + 1].id), weight: 1 });
+      }
+      apiEdges.push({ from: parseInt(userNodes[userNodes.length - 1].id), to: terminalIds[0], weight: 1 });
+    } else {
+      apiEdges.push({ from: startId, to: terminalIds[0], weight: 1 });
+    }
   }
 
   return {
-    startNodeId: 1,
-    terminalNodeIds: [terminalId],
+    startNodeId: startId,
+    terminalNodeIds: terminalIds,
     nodes: apiNodes,
-    edges,
+    edges: apiEdges,
   };
 }
 
+// ─── Page component ───────────────────────────────────────────────────────────
+
 export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageProps) {
   const [nodes, setNodes] = useState<ScenarioNode[]>([]);
+  const [edges, setEdges] = useState<NodeConnection[]>([]);
   const [scenarioName, setScenarioName] = useState('Новый сценарий');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [draggedNodeType, setDraggedNodeType] = useState<string | null>(null);
@@ -104,7 +227,9 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
     if (!scenarioId) return;
     scenariosApi.get(scenarioId).then((scenario) => {
       setScenarioName(scenario.name);
-      setNodes(graphToCanvasNodes(scenario.graph));
+      const { nodes: n, edges: e } = graphToCanvas(scenario.graph);
+      setNodes(n);
+      setEdges(e);
     }).catch(() => {});
   }, [scenarioId]);
 
@@ -116,22 +241,22 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
       y,
       data: {},
     };
-    setNodes([...nodes, newNode]);
+    setNodes((prev) => [...prev, newNode]);
     setDraggedNodeType(null);
   };
 
   const handleDeleteNode = () => {
-    if (selectedNodeId) {
-      setNodes(nodes.filter((n) => n.id !== selectedNodeId));
-      setSelectedNodeId(null);
-    }
+    if (!selectedNodeId) return;
+    setNodes((prev) => prev.filter((n) => n.id !== selectedNodeId));
+    setEdges((prev) => prev.filter((e) => e.from !== selectedNodeId && e.to !== selectedNodeId));
+    setSelectedNodeId(null);
   };
 
   const handleSave = async () => {
     setSaving(true);
     setSaveMsg(null);
     try {
-      const graph = canvasNodesToGraph(nodes);
+      const graph = canvasToGraph(nodes, edges);
       if (scenarioId) {
         await scenariosApi.update(scenarioId, { name: scenarioName, graph });
       } else {
@@ -191,6 +316,7 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
         <div className="flex-1 p-4">
           <Canvas
             nodes={nodes}
+            edges={edges}
             selectedNodeId={selectedNodeId || undefined}
             onNodeSelect={setSelectedNodeId}
             onAddNode={handleAddNode}
@@ -199,7 +325,7 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
         </div>
 
         {/* Right Sidebar - Properties Panel */}
-        {selectedNode && (
+        {selectedNode && selectedNode.type !== 'start' && selectedNode.type !== 'terminal' && (
           <PropertiesPanel
             nodeType={selectedNode.type}
             nodeData={selectedNode.data}

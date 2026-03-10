@@ -2,22 +2,38 @@ import { useState, useRef, useEffect } from "react";
 import { CanvasNode } from "./canvas-node";
 import { Button } from "../ui/button";
 import { ZoomIn, ZoomOut, Maximize2, Undo, Redo, Zap } from "lucide-react";
-import { ScenarioNode } from "./node-types";
+import { ScenarioNode, NodeConnection } from "./node-types";
+
+// Node visual dimensions used for edge connector math
+function nodeHalfW(type: string) {
+  return type === 'start' || type === 'terminal' ? 64 : 100;
+}
+function nodeHeight(type: string) {
+  return type === 'start' || type === 'terminal' ? 48 : 80;
+}
+function getBottom(node: ScenarioNode) {
+  return { x: node.x + nodeHalfW(node.type), y: node.y + nodeHeight(node.type) };
+}
+function getTop(node: ScenarioNode) {
+  return { x: node.x + nodeHalfW(node.type), y: node.y };
+}
 
 interface CanvasProps {
   nodes: ScenarioNode[];
+  edges: NodeConnection[];
   selectedNodeId?: string;
   onNodeSelect?: (id: string) => void;
   onAddNode?: (type: string, x: number, y: number) => void;
   draggedNodeType?: string | null;
 }
 
-export function Canvas({ nodes, selectedNodeId, onNodeSelect, onAddNode, draggedNodeType }: CanvasProps) {
+export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, draggedNodeType }: CanvasProps) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
+  const fittedRef = useRef(false);
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -26,7 +42,8 @@ export function Canvas({ nodes, selectedNodeId, onNodeSelect, onAddNode, dragged
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 1 || (e.button === 0 && e.altKey)) {
+    if (e.button === 1 || (e.button === 0 && e.target === e.currentTarget)) {
+      e.preventDefault();
       setIsPanning(true);
       setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
@@ -44,6 +61,37 @@ export function Canvas({ nodes, selectedNodeId, onNodeSelect, onAddNode, dragged
   const handleMouseUp = () => {
     setIsPanning(false);
   };
+
+  const handleFitToView = () => {
+    if (nodes.length === 0 || !canvasRef.current) {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      return;
+    }
+    const PADDING = 60;
+    const xs = nodes.map((n) => n.x);
+    const ys = nodes.map((n) => n.y);
+    const minX = Math.min(...xs) - PADDING;
+    const minY = Math.min(...ys) - PADDING;
+    const maxX = Math.max(...nodes.map((n) => n.x + nodeHalfW(n.type) * 2)) + PADDING;
+    const maxY = Math.max(...nodes.map((n) => n.y + nodeHeight(n.type))) + PADDING;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scaleX = rect.width / (maxX - minX);
+    const scaleY = rect.height / (maxY - minY);
+    const newZoom = Math.min(scaleX, scaleY, 1);
+    setPan({
+      x: (rect.width - (maxX - minX) * newZoom) / 2 - minX * newZoom,
+      y: (rect.height - (maxY - minY) * newZoom) / 2 - minY * newZoom,
+    });
+    setZoom(newZoom);
+  };
+
+  useEffect(() => {
+    if (nodes.length > 0 && !fittedRef.current) {
+      fittedRef.current = true;
+      setTimeout(handleFitToView, 50);
+    }
+  }, [nodes]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -90,10 +138,7 @@ export function Canvas({ nodes, selectedNodeId, onNodeSelect, onAddNode, dragged
           variant="ghost"
           size="icon"
           className="h-8 w-8"
-          onClick={() => {
-            setZoom(1);
-            setPan({ x: 0, y: 0 });
-          }}
+          onClick={handleFitToView}
         >
           <Maximize2 className="h-4 w-4" />
         </Button>
@@ -112,7 +157,7 @@ export function Canvas({ nodes, selectedNodeId, onNodeSelect, onAddNode, dragged
       {/* Canvas */}
       <div
         ref={canvasRef}
-        className="h-full w-full cursor-grab active:cursor-grabbing"
+        className={`h-full w-full ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -141,17 +186,12 @@ export function Canvas({ nodes, selectedNodeId, onNodeSelect, onAddNode, dragged
             }}
           />
 
-          {/* Start Node */}
-          <div className="absolute top-20 left-20">
-            <div className="flex items-center justify-center h-12 w-32 rounded-lg bg-success text-success-foreground font-semibold shadow-md">
-              Start
-            </div>
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-4 w-4 rounded-full bg-success border-2 border-card" />
-          </div>
-
-          {/* Arrow from start */}
-          {nodes.length > 0 && (
-            <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ overflow: 'visible' }}>
+          {/* Edges SVG — rendered below nodes */}
+          {edges.length > 0 && (
+            <svg
+              className="absolute top-0 left-0 w-full h-full pointer-events-none"
+              style={{ overflow: 'visible' }}
+            >
               <defs>
                 <marker
                   id="arrowhead"
@@ -164,15 +204,43 @@ export function Canvas({ nodes, selectedNodeId, onNodeSelect, onAddNode, dragged
                   <polygon points="0 0, 10 3, 0 6" fill="var(--color-muted-foreground)" />
                 </marker>
               </defs>
-              <line
-                x1={86}
-                y1={52}
-                x2={nodes[0]?.x + 100}
-                y2={nodes[0]?.y}
-                stroke="var(--color-muted-foreground)"
-                strokeWidth="2"
-                markerEnd="url(#arrowhead)"
-              />
+              {edges.map((edge) => {
+                const fromNode = nodes.find((n) => n.id === edge.from);
+                const toNode = nodes.find((n) => n.id === edge.to);
+                if (!fromNode || !toNode) return null;
+                const from = getBottom(fromNode);
+                const to = getTop(toNode);
+                const weight = edge.weight ?? 1;
+                const midX = (from.x + to.x) / 2;
+                const midY = (from.y + to.y) / 2;
+                return (
+                  <g key={edge.id}>
+                    <line
+                      x1={from.x}
+                      y1={from.y}
+                      x2={to.x}
+                      y2={to.y}
+                      stroke="var(--color-muted-foreground)"
+                      strokeWidth="2"
+                      markerEnd="url(#arrowhead)"
+                    />
+                    {weight < 0.99 && (
+                      <text
+                        x={midX}
+                        y={midY}
+                        fill="var(--color-primary)"
+                        fontSize="11"
+                        fontWeight="600"
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        className="select-none"
+                      >
+                        {Math.round(weight * 100)}%
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
             </svg>
           )}
 
@@ -189,37 +257,6 @@ export function Canvas({ nodes, selectedNodeId, onNodeSelect, onAddNode, dragged
               onClick={() => onNodeSelect?.(node.id)}
             />
           ))}
-
-          {/* Connections between nodes */}
-          {nodes.length > 1 && (
-            <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ overflow: 'visible' }}>
-              {nodes.slice(0, -1).map((node, index) => {
-                const nextNode = nodes[index + 1];
-                return (
-                  <g key={`connection-${node.id}-${nextNode.id}`}>
-                    <line
-                      x1={node.x + 100}
-                      y1={node.y + 60}
-                      x2={nextNode.x + 100}
-                      y2={nextNode.y}
-                      stroke="var(--color-muted-foreground)"
-                      strokeWidth="2"
-                      markerEnd="url(#arrowhead)"
-                    />
-                    <text
-                      x={(node.x + nextNode.x + 200) / 2}
-                      y={(node.y + nextNode.y + 60) / 2}
-                      fill="var(--color-primary)"
-                      fontSize="12"
-                      fontWeight="600"
-                    >
-                      100%
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
-          )}
         </div>
       </div>
 

@@ -44,6 +44,8 @@ export interface ScenarioNodeDto {
   config: NodeConfigDto;
   extract: ExtractRuleDto[];
   thinkTimeMs: number;
+  x?: number;
+  y?: number;
 }
 
 export interface ScenarioEdgeDto {

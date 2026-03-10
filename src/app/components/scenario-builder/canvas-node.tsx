@@ -9,12 +9,42 @@ interface CanvasNodeProps {
   data?: any;
   isSelected?: boolean;
   onClick?: () => void;
-  onDragStart?: () => void;
 }
 
 export function CanvasNode({ id, type, x, y, data, isSelected, onClick }: CanvasNodeProps) {
+  if (type === 'start') {
+    return (
+      <div
+        className={cn("absolute cursor-pointer", isSelected && "ring-2 ring-primary ring-offset-2 rounded-lg")}
+        style={{ left: x, top: y }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={onClick}
+      >
+        <div className="relative flex items-center justify-center h-12 w-32 rounded-lg bg-success text-success-foreground font-semibold shadow-md">
+          Start
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-4 w-4 rounded-full bg-success border-2 border-card" />
+        </div>
+      </div>
+    );
+  }
+
+  if (type === 'terminal') {
+    return (
+      <div
+        className={cn("absolute cursor-pointer", isSelected && "ring-2 ring-primary ring-offset-2 rounded-lg")}
+        style={{ left: x, top: y }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={onClick}
+      >
+        <div className="relative flex items-center justify-center h-12 w-32 rounded-lg bg-destructive text-destructive-foreground font-semibold shadow-md">
+          End
+          <div className="absolute -top-2 left-1/2 -translate-x-1/2 h-4 w-4 rounded-full bg-destructive border-2 border-card" />
+        </div>
+      </div>
+    );
+  }
+
   const nodeType = nodeTypes.find((n) => n.type === type);
-  
   if (!nodeType) return null;
 
   const Icon = nodeType.icon;
@@ -26,6 +56,7 @@ export function CanvasNode({ id, type, x, y, data, isSelected, onClick }: Canvas
         isSelected && "ring-2 ring-primary ring-offset-2"
       )}
       style={{ left: x, top: y }}
+      onMouseDown={(e) => e.stopPropagation()}
       onClick={onClick}
     >
       <div className="min-w-[200px] rounded-lg border-2 border-border bg-card shadow-md hover:shadow-lg transition-shadow">

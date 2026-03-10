@@ -1,11 +1,11 @@
-import { Globe, Clock, CheckCircle, Database, GitBranch, RotateCw } from "lucide-react";
+import { Globe, Clock, CheckCircle, Database, GitBranch, RotateCw, Play, Square } from "lucide-react";
 
 export interface NodeType {
   id: string;
-  type: 'http' | 'delay' | 'check' | 'data' | 'split' | 'loop' | 'start';
+  type: 'http' | 'delay' | 'check' | 'data' | 'split' | 'loop' | 'start' | 'terminal';
   label: string;
   icon: any;
-  category: 'request' | 'logic' | 'control';
+  category: 'request' | 'logic' | 'control' | 'system';
   color: string;
 }
 
@@ -56,6 +56,22 @@ export const nodeTypes: NodeType[] = [
     label: 'Loop',
     icon: RotateCw,
     category: 'control',
+    color: 'bg-destructive',
+  },
+  {
+    id: 'start',
+    type: 'start',
+    label: 'Start',
+    icon: Play,
+    category: 'system',
+    color: 'bg-success',
+  },
+  {
+    id: 'terminal',
+    type: 'terminal',
+    label: 'End',
+    icon: Square,
+    category: 'system',
     color: 'bg-destructive',
   },
 ];
