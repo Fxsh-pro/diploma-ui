@@ -22,13 +22,16 @@ interface CanvasProps {
   nodes: ScenarioNode[];
   edges: NodeConnection[];
   selectedNodeId?: string;
+  selectedEdgeId?: string;
   onNodeSelect?: (id: string) => void;
+  onEdgeSelect?: (id: string) => void;
   onAddNode?: (type: string, x: number, y: number) => void;
   onNodeMove?: (id: string, x: number, y: number) => void;
+  onAddEdge?: (from: string, to: string) => void;
   draggedNodeType?: string | null;
 }
 
-export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, onNodeMove, draggedNodeType }: CanvasProps) {
+export function Canvas({ nodes, edges, selectedNodeId, selectedEdgeId, onNodeSelect, onEdgeSelect, onAddNode, onNodeMove, onAddEdge, draggedNodeType }: CanvasProps) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -40,6 +43,10 @@ export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, 
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const dragStartRef = useRef<{ nodeX: number; nodeY: number; mouseX: number; mouseY: number } | null>(null);
 
+  // Edge connection state
+  const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const [connectingMouse, setConnectingMouse] = useState<{ x: number; y: number } | null>(null);
+
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
@@ -49,12 +56,19 @@ export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 1 || (e.button === 0 && e.target === e.currentTarget)) {
       e.preventDefault();
+      // Cancel connecting if clicking empty canvas
+      if (connectingFrom) {
+        setConnectingFrom(null);
+        setConnectingMouse(null);
+        return;
+      }
       setIsPanning(true);
       setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
     }
   };
 
   const handleNodeDragStart = useCallback((nodeId: string, e: React.MouseEvent) => {
+    if (connectingFrom) return; // Don't drag while connecting
     e.stopPropagation();
     e.preventDefault();
     const node = nodes.find((n) => n.id === nodeId);
@@ -66,9 +80,41 @@ export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, 
       mouseX: e.clientX,
       mouseY: e.clientY,
     };
-  }, [nodes]);
+  }, [nodes, connectingFrom]);
+
+  const handleOutputPortClick = useCallback((nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setConnectingFrom(nodeId);
+    // Get initial mouse position in canvas coords
+    if (canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      setConnectingMouse({
+        x: (e.clientX - rect.left - pan.x) / zoom,
+        y: (e.clientY - rect.top - pan.y) / zoom,
+      });
+    }
+  }, [pan, zoom]);
+
+  const handleInputPortClick = useCallback((nodeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (connectingFrom && connectingFrom !== nodeId) {
+      onAddEdge?.(connectingFrom, nodeId);
+    }
+    setConnectingFrom(null);
+    setConnectingMouse(null);
+  }, [connectingFrom, onAddEdge]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    // Update connecting line
+    if (connectingFrom && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      setConnectingMouse({
+        x: (e.clientX - rect.left - pan.x) / zoom,
+        y: (e.clientY - rect.top - pan.y) / zoom,
+      });
+    }
     if (draggingNodeId && dragStartRef.current) {
       const dx = (e.clientX - dragStartRef.current.mouseX) / zoom;
       const dy = (e.clientY - dragStartRef.current.mouseY) / zoom;
@@ -138,6 +184,10 @@ export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, 
     e.preventDefault();
   };
 
+  // Compute the connecting line start point
+  const connectingFromNode = connectingFrom ? nodes.find((n) => n.id === connectingFrom) : null;
+  const connectLineStart = connectingFromNode ? getBottom(connectingFromNode) : null;
+
   return (
     <div className="relative h-full bg-muted/20 overflow-hidden rounded-lg border border-border">
       {/* Toolbar */}
@@ -180,6 +230,13 @@ export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, 
         </Button>
       </div>
 
+      {/* Connection hint */}
+      {connectingFrom && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-10 bg-primary text-primary-foreground rounded-lg px-3 py-1.5 text-sm font-medium shadow-lg">
+          Click on a node's input port (top) to connect — or click canvas to cancel
+        </div>
+      )}
+
       {/* Zoom indicator */}
       <div className="absolute bottom-4 right-4 z-10 bg-card border border-border rounded-lg px-3 py-2 text-sm font-medium shadow-lg">
         {Math.round(zoom * 100)}%
@@ -188,7 +245,7 @@ export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, 
       {/* Canvas */}
       <div
         ref={canvasRef}
-        className={`h-full w-full ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+        className={`h-full w-full ${isPanning ? 'cursor-grabbing' : connectingFrom ? 'cursor-crosshair' : 'cursor-grab'}`}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -218,62 +275,94 @@ export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, 
           />
 
           {/* Edges SVG — rendered below nodes */}
-          {edges.length > 0 && (
-            <svg
-              className="absolute top-0 left-0 w-full h-full pointer-events-none"
-              style={{ overflow: 'visible' }}
-            >
-              <defs>
-                <marker
-                  id="arrowhead"
-                  markerWidth="10"
-                  markerHeight="10"
-                  refX="9"
-                  refY="3"
-                  orient="auto"
-                >
-                  <polygon points="0 0, 10 3, 0 6" fill="var(--color-muted-foreground)" />
-                </marker>
-              </defs>
-              {edges.map((edge) => {
-                const fromNode = nodes.find((n) => n.id === edge.from);
-                const toNode = nodes.find((n) => n.id === edge.to);
-                if (!fromNode || !toNode) return null;
-                const from = getBottom(fromNode);
-                const to = getTop(toNode);
-                const weight = edge.weight ?? 1;
-                const midX = (from.x + to.x) / 2;
-                const midY = (from.y + to.y) / 2;
-                return (
-                  <g key={edge.id}>
-                    <line
-                      x1={from.x}
-                      y1={from.y}
-                      x2={to.x}
-                      y2={to.y}
-                      stroke="var(--color-muted-foreground)"
-                      strokeWidth="2"
-                      markerEnd="url(#arrowhead)"
-                    />
-                    {weight < 0.99 && (
-                      <text
-                        x={midX}
-                        y={midY}
-                        fill="var(--color-primary)"
-                        fontSize="11"
-                        fontWeight="600"
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        className="select-none"
-                      >
-                        {Math.round(weight * 100)}%
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-            </svg>
-          )}
+          <svg
+            className="absolute top-0 left-0 w-full h-full"
+            style={{ overflow: 'visible', pointerEvents: 'none' }}
+          >
+            <defs>
+              <marker
+                id="arrowhead"
+                markerWidth="10"
+                markerHeight="10"
+                refX="9"
+                refY="3"
+                orient="auto"
+              >
+                <polygon points="0 0, 10 3, 0 6" fill="var(--color-muted-foreground)" />
+              </marker>
+              <marker
+                id="arrowhead-active"
+                markerWidth="10"
+                markerHeight="10"
+                refX="9"
+                refY="3"
+                orient="auto"
+              >
+                <polygon points="0 0, 10 3, 0 6" fill="var(--color-primary)" />
+              </marker>
+            </defs>
+            {edges.map((edge) => {
+              const fromNode = nodes.find((n) => n.id === edge.from);
+              const toNode = nodes.find((n) => n.id === edge.to);
+              if (!fromNode || !toNode) return null;
+              const from = getBottom(fromNode);
+              const to = getTop(toNode);
+              const weight = edge.weight ?? 1;
+              const midX = (from.x + to.x) / 2;
+              const midY = (from.y + to.y) / 2;
+              const isSelected = selectedEdgeId === edge.id;
+              return (
+                <g key={edge.id}>
+                  {/* Invisible wide hit area for clicking */}
+                  <line
+                    x1={from.x}
+                    y1={from.y}
+                    x2={to.x}
+                    y2={to.y}
+                    stroke="transparent"
+                    strokeWidth="14"
+                    style={{ pointerEvents: 'all', cursor: 'pointer' }}
+                    onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); onEdgeSelect?.(edge.id); }}
+                  />
+                  <line
+                    x1={from.x}
+                    y1={from.y}
+                    x2={to.x}
+                    y2={to.y}
+                    stroke={isSelected ? 'var(--color-primary)' : 'var(--color-muted-foreground)'}
+                    strokeWidth={isSelected ? 3 : 2}
+                    markerEnd={isSelected ? 'url(#arrowhead-active)' : 'url(#arrowhead)'}
+                  />
+                  <text
+                    x={midX}
+                    y={midY - 8}
+                    fill={isSelected ? 'var(--color-primary)' : 'var(--color-muted-foreground)'}
+                    fontSize="11"
+                    fontWeight="600"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="select-none"
+                  >
+                    {Math.round(weight * 100)}%
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Temporary connecting line */}
+            {connectLineStart && connectingMouse && (
+              <line
+                x1={connectLineStart.x}
+                y1={connectLineStart.y}
+                x2={connectingMouse.x}
+                y2={connectingMouse.y}
+                stroke="var(--color-primary)"
+                strokeWidth="2"
+                strokeDasharray="6 3"
+                markerEnd="url(#arrowhead-active)"
+              />
+            )}
+          </svg>
 
           {/* Render nodes */}
           {nodes.map((node) => (
@@ -285,8 +374,11 @@ export function Canvas({ nodes, edges, selectedNodeId, onNodeSelect, onAddNode, 
               y={node.y}
               data={node.data}
               isSelected={selectedNodeId === node.id}
+              isConnecting={connectingFrom !== null}
               onClick={() => onNodeSelect?.(node.id)}
               onDragStart={(e) => handleNodeDragStart(node.id, e)}
+              onOutputPortClick={(e) => handleOutputPortClick(node.id, e)}
+              onInputPortClick={(e) => handleInputPortClick(node.id, e)}
             />
           ))}
         </div>

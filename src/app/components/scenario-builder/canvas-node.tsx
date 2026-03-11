@@ -8,11 +8,37 @@ interface CanvasNodeProps {
   y: number;
   data?: any;
   isSelected?: boolean;
+  isConnecting?: boolean;
   onClick?: () => void;
   onDragStart?: (e: React.MouseEvent) => void;
+  onOutputPortClick?: (e: React.MouseEvent) => void;
+  onInputPortClick?: (e: React.MouseEvent) => void;
 }
 
-export function CanvasNode({ id, type, x, y, data, isSelected, onClick, onDragStart }: CanvasNodeProps) {
+function OutputPort({ onClick }: { onClick?: (e: React.MouseEvent) => void }) {
+  return (
+    <div
+      className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-4 w-4 rounded-full border-2 border-card cursor-pointer bg-primary hover:bg-primary/80 hover:scale-125 transition-transform z-10"
+      onMouseDown={(e) => { e.stopPropagation(); onClick?.(e); }}
+      title="Drag to connect"
+    />
+  );
+}
+
+function InputPort({ onClick, highlight }: { onClick?: (e: React.MouseEvent) => void; highlight?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "absolute -top-2 left-1/2 -translate-x-1/2 h-4 w-4 rounded-full border-2 border-card cursor-pointer z-10 transition-all",
+        highlight ? "bg-primary scale-125 ring-2 ring-primary/50" : "bg-primary hover:bg-primary/80 hover:scale-125"
+      )}
+      onMouseDown={(e) => { e.stopPropagation(); onClick?.(e); }}
+      title="Click to connect here"
+    />
+  );
+}
+
+export function CanvasNode({ id, type, x, y, data, isSelected, isConnecting, onClick, onDragStart, onOutputPortClick, onInputPortClick }: CanvasNodeProps) {
   if (type === 'start') {
     return (
       <div
@@ -23,7 +49,7 @@ export function CanvasNode({ id, type, x, y, data, isSelected, onClick, onDragSt
       >
         <div className="relative flex items-center justify-center h-12 w-32 rounded-lg bg-success text-success-foreground font-semibold shadow-md">
           Start
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-4 w-4 rounded-full bg-success border-2 border-card" />
+          <OutputPort onClick={onOutputPortClick} />
         </div>
       </div>
     );
@@ -39,7 +65,7 @@ export function CanvasNode({ id, type, x, y, data, isSelected, onClick, onDragSt
       >
         <div className="relative flex items-center justify-center h-12 w-32 rounded-lg bg-destructive text-destructive-foreground font-semibold shadow-md">
           End
-          <div className="absolute -top-2 left-1/2 -translate-x-1/2 h-4 w-4 rounded-full bg-destructive border-2 border-card" />
+          <InputPort onClick={onInputPortClick} highlight={isConnecting} />
         </div>
       </div>
     );
@@ -60,7 +86,7 @@ export function CanvasNode({ id, type, x, y, data, isSelected, onClick, onDragSt
       onMouseDown={onDragStart}
       onClick={onClick}
     >
-      <div className="min-w-[200px] rounded-lg border-2 border-border bg-card shadow-md hover:shadow-lg transition-shadow">
+      <div className="relative min-w-[200px] rounded-lg border-2 border-border bg-card shadow-md hover:shadow-lg transition-shadow">
         {/* Header */}
         <div className={cn("flex items-center gap-2 px-3 py-2 rounded-t-md text-white", nodeType.color)}>
           <Icon className="h-4 w-4" />
@@ -74,14 +100,11 @@ export function CanvasNode({ id, type, x, y, data, isSelected, onClick, onDragSt
               <div className="font-mono text-foreground">
                 {data?.method || 'GET'} {data?.url || '/api/endpoint'}
               </div>
-              {data?.status && (
-                <div className="text-xs mt-1">Status: {data.status}</div>
-              )}
             </div>
           )}
           {type === 'delay' && (
             <div className="font-mono text-foreground">
-              Think Time: {data?.duration || '2s'}
+              Think Time: {data?.duration || '1000'}ms
             </div>
           )}
           {type === 'check' && (
@@ -91,9 +114,9 @@ export function CanvasNode({ id, type, x, y, data, isSelected, onClick, onDragSt
           )}
         </div>
 
-        {/* Connection points */}
-        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-4 w-4 rounded-full bg-primary border-2 border-card" />
-        <div className="absolute -top-2 left-1/2 -translate-x-1/2 h-4 w-4 rounded-full bg-primary border-2 border-card" />
+        {/* Connection ports */}
+        <OutputPort onClick={onOutputPortClick} />
+        <InputPort onClick={onInputPortClick} highlight={isConnecting} />
       </div>
     </div>
   );

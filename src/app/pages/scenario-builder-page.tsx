@@ -4,6 +4,7 @@ import { Button } from "../components/ui/button";
 import { Toolbox } from "../components/scenario-builder/toolbox";
 import { Canvas } from "../components/scenario-builder/canvas";
 import { PropertiesPanel } from "../components/scenario-builder/properties-panel";
+import { EdgePropertiesPanel } from "../components/scenario-builder/edge-properties-panel";
 import type { ScenarioNode, NodeConnection } from "../components/scenario-builder/node-types";
 import { scenariosApi } from "../../api/scenarios";
 import type { ScenarioNodeDto, ScenarioEdgeDto, ScenarioGraphDto } from "../../api/types";
@@ -54,7 +55,6 @@ function computeAutoLayout(
     inDegree.set(e.to, (inDegree.get(e.to) ?? 0) + 1);
   }
 
-  // Kahn's topological sort — assign max depth (longest path from root)
   const layer = new Map<number, number>();
   const tempDeg = new Map(inDegree);
   const queue: number[] = [];
@@ -71,7 +71,6 @@ function computeAutoLayout(
     }
   }
 
-  // Group by layer
   const byLayer = new Map<number, number[]>();
   for (const [id, l] of layer) {
     if (!byLayer.has(l)) byLayer.set(l, []);
@@ -99,7 +98,6 @@ function computeAutoLayout(
 function graphToCanvas(graph: ScenarioGraphDto): { nodes: ScenarioNode[]; edges: NodeConnection[] } {
   const apiNodes = Object.values(graph.nodes);
 
-  // Use stored x/y if all non-START/TERMINAL nodes have them; otherwise auto-layout
   const userNodes = apiNodes.filter((n) => n.type !== 'START' && n.type !== 'TERMINAL');
   const hasStored = userNodes.length > 0 && userNodes.every((n) => n.x != null && n.y != null);
   const autoPos = hasStored ? null : computeAutoLayout(apiNodes, graph.edges);
@@ -113,9 +111,9 @@ function graphToCanvas(graph: ScenarioGraphDto): { nodes: ScenarioNode[]; edges:
       x,
       y,
       data: n.type === 'HTTP'
-        ? { method: n.config.method, url: n.config.url, headers: n.config.headers, body: n.config.body }
+        ? { method: n.config.method, url: n.config.url, headers: n.config.headers || {}, body: n.config.body, extract: n.extract || [] }
         : n.type === 'DELAY'
-        ? { duration: n.thinkTimeMs + 'ms' }
+        ? { duration: String(n.thinkTimeMs) }
         : {},
     };
   });
@@ -151,7 +149,7 @@ function canvasToGraph(nodes: ScenarioNode[], edges: NodeConnection[]): Scenario
       config: n.type === 'http'
         ? { method: n.data?.method || 'GET', url: n.data?.url || '', headers: n.data?.headers || {}, body: n.data?.body || '' }
         : { method: '', url: '', headers: {}, body: '' },
-      extract: [],
+      extract: n.type === 'http' ? (n.data?.extract || []) : [],
       thinkTimeMs: n.type === 'delay' ? parseInt(n.data?.duration ?? '0') : 0,
       x: n.x,
       y: n.y,
@@ -183,14 +181,12 @@ function canvasToGraph(nodes: ScenarioNode[], edges: NodeConnection[]): Scenario
     terminalIds = [maxId];
   }
 
-  // Build edges: use stored edges if available, else sequential fallback
   let apiEdges: ScenarioEdgeDto[];
   if (edges.length > 0) {
     apiEdges = edges
       .map((e) => ({ from: parseInt(e.from), to: parseInt(e.to), weight: e.weight ?? 1 }))
       .filter((e) => !isNaN(e.from) && !isNaN(e.to));
   } else {
-    // Sequential fallback for new scenarios without edges
     const userNodes = nodes.filter((n) => n.type !== 'start' && n.type !== 'terminal');
     apiEdges = [];
     if (userNodes.length > 0) {
@@ -219,6 +215,7 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
   const [edges, setEdges] = useState<NodeConnection[]>([]);
   const [scenarioName, setScenarioName] = useState('Новый сценарий');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [draggedNodeType, setDraggedNodeType] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
@@ -249,11 +246,48 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
     setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n)));
   };
 
+  const handleNodeUpdate = (data: any) => {
+    if (!selectedNodeId) return;
+    setNodes((prev) => prev.map((n) => (n.id === selectedNodeId ? { ...n, data } : n)));
+  };
+
+  const handleAddEdge = (from: string, to: string) => {
+    if (edges.some((e) => e.from === from && e.to === to)) return;
+    const newEdge: NodeConnection = {
+      id: `e-${Date.now()}`,
+      from,
+      to,
+      weight: 1,
+    };
+    setEdges((prev) => [...prev, newEdge]);
+  };
+
   const handleDeleteNode = () => {
     if (!selectedNodeId) return;
     setNodes((prev) => prev.filter((n) => n.id !== selectedNodeId));
     setEdges((prev) => prev.filter((e) => e.from !== selectedNodeId && e.to !== selectedNodeId));
     setSelectedNodeId(null);
+  };
+
+  const handleSelectNode = (id: string) => {
+    setSelectedNodeId(id);
+    setSelectedEdgeId(null);
+  };
+
+  const handleSelectEdge = (id: string) => {
+    setSelectedEdgeId(id);
+    setSelectedNodeId(null);
+  };
+
+  const handleDeleteEdge = () => {
+    if (!selectedEdgeId) return;
+    setEdges((prev) => prev.filter((e) => e.id !== selectedEdgeId));
+    setSelectedEdgeId(null);
+  };
+
+  const handleUpdateEdge = (patch: Partial<NodeConnection>) => {
+    if (!selectedEdgeId) return;
+    setEdges((prev) => prev.map((e) => (e.id === selectedEdgeId ? { ...e, ...patch } : e)));
   };
 
   const handleSave = async () => {
@@ -276,6 +310,7 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
   };
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  const selectedEdge = edges.find((e) => e.id === selectedEdgeId);
 
   return (
     <div className="fixed inset-0 z-50 bg-background">
@@ -322,9 +357,12 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
             nodes={nodes}
             edges={edges}
             selectedNodeId={selectedNodeId || undefined}
-            onNodeSelect={setSelectedNodeId}
+            selectedEdgeId={selectedEdgeId || undefined}
+            onNodeSelect={handleSelectNode}
+            onEdgeSelect={handleSelectEdge}
             onAddNode={handleAddNode}
             onNodeMove={handleNodeMove}
+            onAddEdge={handleAddEdge}
             draggedNodeType={draggedNodeType}
           />
         </div>
@@ -335,7 +373,17 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
             nodeType={selectedNode.type}
             nodeData={selectedNode.data}
             onClose={() => setSelectedNodeId(null)}
+            onUpdate={handleNodeUpdate}
             onDelete={handleDeleteNode}
+          />
+        )}
+        {selectedEdge && (
+          <EdgePropertiesPanel
+            edge={selectedEdge}
+            nodes={nodes}
+            onClose={() => setSelectedEdgeId(null)}
+            onUpdate={handleUpdateEdge}
+            onDelete={handleDeleteEdge}
           />
         )}
       </div>
