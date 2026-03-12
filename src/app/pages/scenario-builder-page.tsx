@@ -1,13 +1,22 @@
-import { useState, useEffect } from "react";
-import { ArrowLeft, Save, Play, Settings } from "lucide-react";
-import { Button } from "../components/ui/button";
-import { Toolbox } from "../components/scenario-builder/toolbox";
-import { Canvas } from "../components/scenario-builder/canvas";
-import { PropertiesPanel } from "../components/scenario-builder/properties-panel";
-import { EdgePropertiesPanel } from "../components/scenario-builder/edge-properties-panel";
-import type { ScenarioNode, NodeConnection } from "../components/scenario-builder/node-types";
-import { scenariosApi } from "../../api/scenarios";
-import type { ScenarioNodeDto, ScenarioEdgeDto, ScenarioGraphDto } from "../../api/types";
+import { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, Save, Play, Settings } from 'lucide-react';
+import {
+  useNodesState,
+  useEdgesState,
+  addEdge,
+  type Node,
+  type Edge,
+  type OnConnect,
+  type Connection,
+} from '@xyflow/react';
+import { Button } from '../components/ui/button';
+import { Toolbox } from '../components/scenario-builder/toolbox';
+import { Canvas } from '../components/scenario-builder/canvas';
+import { PropertiesPanel } from '../components/scenario-builder/properties-panel';
+import { EdgePropertiesPanel } from '../components/scenario-builder/edge-properties-panel';
+import type { ScenarioNode, NodeConnection } from '../components/scenario-builder/node-types';
+import { scenariosApi } from '../../api/scenarios';
+import type { ScenarioNodeDto, ScenarioEdgeDto, ScenarioGraphDto } from '../../api/types';
 
 interface ScenarioBuilderPageProps {
   scenarioId?: string;
@@ -22,6 +31,7 @@ function apiTypeToCanvas(type: string): ScenarioNode['type'] {
     case 'HTTP':     return 'http';
     case 'DELAY':    return 'delay';
     case 'CHECK':    return 'check';
+    case 'GENERATE': return 'generate';
     case 'TERMINAL': return 'terminal';
     default:         return 'http';
   }
@@ -34,6 +44,7 @@ function canvasTypeToApi(type: ScenarioNode['type']): string {
     case 'http':     return 'HTTP';
     case 'delay':    return 'DELAY';
     case 'check':    return 'CHECK';
+    case 'generate': return 'GENERATE';
     default:         return 'HTTP';
   }
 }
@@ -95,69 +106,82 @@ function computeAutoLayout(
 
 // ─── Graph ↔ Canvas conversion ────────────────────────────────────────────────
 
-function graphToCanvas(graph: ScenarioGraphDto): { nodes: ScenarioNode[]; edges: NodeConnection[] } {
+function graphToCanvas(graph: ScenarioGraphDto): { nodes: Node[]; edges: Edge[] } {
   const apiNodes = Object.values(graph.nodes);
 
   const userNodes = apiNodes.filter((n) => n.type !== 'START' && n.type !== 'TERMINAL');
   const hasStored = userNodes.length > 0 && userNodes.every((n) => n.x != null && n.y != null);
   const autoPos = hasStored ? null : computeAutoLayout(apiNodes, graph.edges);
 
-  const nodes: ScenarioNode[] = apiNodes.map((n) => {
-    const x = (n.x != null && hasStored) ? n.x : (autoPos?.get(n.id)?.x ?? 0);
-    const y = (n.y != null && hasStored) ? n.y : (autoPos?.get(n.id)?.y ?? 0);
+  const nodes: Node[] = apiNodes.map((n) => {
+    const x = n.x != null && hasStored ? n.x : (autoPos?.get(n.id)?.x ?? 0);
+    const y = n.y != null && hasStored ? n.y : (autoPos?.get(n.id)?.y ?? 0);
     return {
       id: String(n.id),
-      type: apiTypeToCanvas(n.type),
-      x,
-      y,
-      data: n.type === 'HTTP'
-        ? { method: n.config.method, url: n.config.url, headers: n.config.headers || {}, body: n.config.body, extract: n.extract || [] }
-        : n.type === 'DELAY'
-        ? { duration: String(n.thinkTimeMs) }
-        : {},
+      type: 'scenarioNode',
+      position: { x, y },
+      data: {
+        nodeType: apiTypeToCanvas(n.type),
+        nodeData:
+          n.type === 'HTTP'
+            ? { method: n.config.method, url: n.config.url, headers: n.config.headers || {}, body: n.config.body, extract: n.extract || [] }
+            : n.type === 'DELAY'
+            ? { duration: String(n.thinkTimeMs) }
+            : n.type === 'GENERATE'
+            ? { rules: n.generate || [] }
+            : n.type === 'CHECK'
+            ? { checks: n.checks || [] }
+            : {},
+      },
     };
   });
 
-  const edges: NodeConnection[] = graph.edges.map((e, i) => ({
+  const edges: Edge[] = graph.edges.map((e, i) => ({
     id: `e-${i}`,
-    from: String(e.from),
-    to: String(e.to),
-    weight: e.weight,
+    source: String(e.from),
+    target: String(e.to),
+    type: 'weighted',
+    data: { weight: e.weight, condition: e.condition ?? 'ANY' },
   }));
 
   return { nodes, edges };
 }
 
-function canvasToGraph(nodes: ScenarioNode[], edges: NodeConnection[]): ScenarioGraphDto {
+function canvasToGraph(nodes: Node[], edges: Edge[]): ScenarioGraphDto {
   const apiNodes: Record<string, ScenarioNodeDto> = {};
 
   for (const n of nodes) {
     const id = parseInt(n.id);
     if (isNaN(id)) continue;
 
+    const nodeType = n.data.nodeType as string;
+    const nodeData = n.data.nodeData as any;
+
     const name =
-      n.type === 'http'     ? `${n.data?.method || 'GET'} ${n.data?.url || ''}` :
-      n.type === 'delay'    ? 'Delay' :
-      n.type === 'check'    ? 'Check' :
-      n.type === 'start'    ? 'Start' :
-      n.type === 'terminal' ? 'End' : n.type;
+      nodeType === 'http'     ? `${nodeData?.method || 'GET'} ${nodeData?.url || ''}` :
+      nodeType === 'delay'    ? 'Delay' :
+      nodeType === 'check'    ? 'Check' :
+      nodeType === 'generate' ? 'Generate' :
+      nodeType === 'start'    ? 'Start' :
+      nodeType === 'terminal' ? 'End' : nodeType;
 
     apiNodes[String(id)] = {
       id,
-      type: canvasTypeToApi(n.type) as any,
+      type: canvasTypeToApi(nodeType as ScenarioNode['type']) as any,
       name,
-      config: n.type === 'http'
-        ? { method: n.data?.method || 'GET', url: n.data?.url || '', headers: n.data?.headers || {}, body: n.data?.body || '' }
+      config: nodeType === 'http'
+        ? { method: nodeData?.method || 'GET', url: nodeData?.url || '', headers: nodeData?.headers || {}, body: nodeData?.body || '' }
         : { method: '', url: '', headers: {}, body: '' },
-      extract: n.type === 'http' ? (n.data?.extract || []) : [],
-      thinkTimeMs: n.type === 'delay' ? parseInt(n.data?.duration ?? '0') : 0,
-      x: n.x,
-      y: n.y,
+      extract: nodeType === 'http' ? (nodeData?.extract || []) : [],
+      generate: nodeType === 'generate' ? (nodeData?.rules || []) : [],
+      checks: nodeType === 'check' ? (nodeData?.checks || []) : [],
+      thinkTimeMs: nodeType === 'delay' ? parseInt(nodeData?.duration ?? '0') : 0,
+      x: n.position.x,
+      y: n.position.y,
     };
   }
 
-  // Ensure START node exists
-  const startNode = nodes.find((n) => n.type === 'start');
+  const startNode = nodes.find((n) => n.data.nodeType === 'start');
   let startId = startNode ? parseInt(startNode.id) : 1;
   if (!startNode) {
     apiNodes['1'] = {
@@ -168,8 +192,7 @@ function canvasToGraph(nodes: ScenarioNode[], edges: NodeConnection[]): Scenario
     startId = 1;
   }
 
-  // Ensure TERMINAL node exists
-  const terminalNodes = nodes.filter((n) => n.type === 'terminal');
+  const terminalNodes = nodes.filter((n) => n.data.nodeType === 'terminal');
   let terminalIds = terminalNodes.map((n) => parseInt(n.id));
   if (terminalNodes.length === 0) {
     const maxId = Math.max(1, ...Object.keys(apiNodes).map(Number)) + 1;
@@ -184,10 +207,10 @@ function canvasToGraph(nodes: ScenarioNode[], edges: NodeConnection[]): Scenario
   let apiEdges: ScenarioEdgeDto[];
   if (edges.length > 0) {
     apiEdges = edges
-      .map((e) => ({ from: parseInt(e.from), to: parseInt(e.to), weight: e.weight ?? 1 }))
+      .map((e) => ({ from: parseInt(e.source), to: parseInt(e.target), weight: (e.data?.weight as number) ?? 1, condition: (e.data?.condition as string) ?? 'ANY' }))
       .filter((e) => !isNaN(e.from) && !isNaN(e.to));
   } else {
-    const userNodes = nodes.filter((n) => n.type !== 'start' && n.type !== 'terminal');
+    const userNodes = nodes.filter((n) => n.data.nodeType !== 'start' && n.data.nodeType !== 'terminal');
     apiEdges = [];
     if (userNodes.length > 0) {
       apiEdges.push({ from: startId, to: parseInt(userNodes[0].id), weight: 1 });
@@ -211,12 +234,11 @@ function canvasToGraph(nodes: ScenarioNode[], edges: NodeConnection[]): Scenario
 // ─── Page component ───────────────────────────────────────────────────────────
 
 export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageProps) {
-  const [nodes, setNodes] = useState<ScenarioNode[]>([]);
-  const [edges, setEdges] = useState<NodeConnection[]>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [scenarioName, setScenarioName] = useState('Новый сценарий');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const [draggedNodeType, setDraggedNodeType] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
@@ -230,42 +252,32 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
     }).catch(() => {});
   }, [scenarioId]);
 
-  const handleAddNode = (type: string, x: number, y: number) => {
-    const newNode: ScenarioNode = {
+  const handleAddNode = useCallback((type: string, x: number, y: number) => {
+    const newNode: Node = {
       id: Date.now().toString(),
-      type: type as ScenarioNode['type'],
-      x,
-      y,
-      data: {},
+      type: 'scenarioNode',
+      position: { x, y },
+      data: { nodeType: type, nodeData: {} },
     };
-    setNodes((prev) => [...prev, newNode]);
-    setDraggedNodeType(null);
-  };
+    setNodes((nds) => [...nds, newNode]);
+  }, [setNodes]);
 
-  const handleNodeMove = (id: string, x: number, y: number) => {
-    setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n)));
-  };
+  const onConnect: OnConnect = useCallback((connection: Connection) => {
+    if (edges.some((e) => e.source === connection.source && e.target === connection.target)) return;
+    setEdges((eds) => addEdge({ ...connection, type: 'weighted', data: { weight: 1 } }, eds));
+  }, [edges, setEdges]);
 
   const handleNodeUpdate = (data: any) => {
     if (!selectedNodeId) return;
-    setNodes((prev) => prev.map((n) => (n.id === selectedNodeId ? { ...n, data } : n)));
-  };
-
-  const handleAddEdge = (from: string, to: string) => {
-    if (edges.some((e) => e.from === from && e.to === to)) return;
-    const newEdge: NodeConnection = {
-      id: `e-${Date.now()}`,
-      from,
-      to,
-      weight: 1,
-    };
-    setEdges((prev) => [...prev, newEdge]);
+    setNodes((nds) =>
+      nds.map((n) => n.id === selectedNodeId ? { ...n, data: { ...n.data, nodeData: data } } : n),
+    );
   };
 
   const handleDeleteNode = () => {
     if (!selectedNodeId) return;
-    setNodes((prev) => prev.filter((n) => n.id !== selectedNodeId));
-    setEdges((prev) => prev.filter((e) => e.from !== selectedNodeId && e.to !== selectedNodeId));
+    setNodes((nds) => nds.filter((n) => n.id !== selectedNodeId));
+    setEdges((eds) => eds.filter((e) => e.source !== selectedNodeId && e.target !== selectedNodeId));
     setSelectedNodeId(null);
   };
 
@@ -281,13 +293,26 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
 
   const handleDeleteEdge = () => {
     if (!selectedEdgeId) return;
-    setEdges((prev) => prev.filter((e) => e.id !== selectedEdgeId));
+    setEdges((eds) => eds.filter((e) => e.id !== selectedEdgeId));
     setSelectedEdgeId(null);
   };
 
   const handleUpdateEdge = (patch: Partial<NodeConnection>) => {
     if (!selectedEdgeId) return;
-    setEdges((prev) => prev.map((e) => (e.id === selectedEdgeId ? { ...e, ...patch } : e)));
+    setEdges((eds) =>
+      eds.map((e) =>
+        e.id === selectedEdgeId
+          ? {
+              ...e,
+              data: {
+                ...e.data,
+                weight: patch.weight ?? (e.data?.weight as number) ?? 1,
+                condition: patch.condition ?? (e.data?.condition as string) ?? 'ANY',
+              },
+            }
+          : e,
+      ),
+    );
   };
 
   const handleSave = async () => {
@@ -311,6 +336,29 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
   const selectedEdge = edges.find((e) => e.id === selectedEdgeId);
+
+  // Convert RF nodes/edges to legacy panel formats
+  const selectedNodeForPanel = selectedNode
+    ? { type: selectedNode.data.nodeType as string, data: selectedNode.data.nodeData }
+    : null;
+
+  const selectedEdgeForPanel: NodeConnection | null = selectedEdge
+    ? {
+        id: selectedEdge.id,
+        from: selectedEdge.source,
+        to: selectedEdge.target,
+        weight: (selectedEdge.data?.weight as number) ?? 1,
+        condition: (selectedEdge.data?.condition as NodeConnection['condition']) ?? 'ANY',
+      }
+    : null;
+
+  const nodesForPanel: ScenarioNode[] = nodes.map((n) => ({
+    id: n.id,
+    type: n.data.nodeType as ScenarioNode['type'],
+    x: n.position.x,
+    y: n.position.y,
+    data: n.data.nodeData,
+  }));
 
   return (
     <div className="fixed inset-0 z-50 bg-background">
@@ -348,7 +396,7 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
       <div className="flex h-[calc(100vh-4rem)]">
         {/* Left Sidebar - Toolbox */}
         <div className="w-64 border-r border-border p-4">
-          <Toolbox onNodeDragStart={setDraggedNodeType} />
+          <Toolbox />
         </div>
 
         {/* Center - Canvas */}
@@ -356,31 +404,30 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
           <Canvas
             nodes={nodes}
             edges={edges}
-            selectedNodeId={selectedNodeId || undefined}
-            selectedEdgeId={selectedEdgeId || undefined}
-            onNodeSelect={handleSelectNode}
-            onEdgeSelect={handleSelectEdge}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeClick={handleSelectNode}
+            onEdgeClick={handleSelectEdge}
             onAddNode={handleAddNode}
-            onNodeMove={handleNodeMove}
-            onAddEdge={handleAddEdge}
-            draggedNodeType={draggedNodeType}
+            onPaneClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
           />
         </div>
 
         {/* Right Sidebar - Properties Panel */}
-        {selectedNode && selectedNode.type !== 'start' && selectedNode.type !== 'terminal' && (
+        {selectedNodeForPanel && selectedNodeForPanel.type !== 'start' && selectedNodeForPanel.type !== 'terminal' && (
           <PropertiesPanel
-            nodeType={selectedNode.type}
-            nodeData={selectedNode.data}
+            nodeType={selectedNodeForPanel.type}
+            nodeData={selectedNodeForPanel.data}
             onClose={() => setSelectedNodeId(null)}
             onUpdate={handleNodeUpdate}
             onDelete={handleDeleteNode}
           />
         )}
-        {selectedEdge && (
+        {selectedEdgeForPanel && (
           <EdgePropertiesPanel
-            edge={selectedEdge}
-            nodes={nodes}
+            edge={selectedEdgeForPanel}
+            nodes={nodesForPanel}
             onClose={() => setSelectedEdgeId(null)}
             onUpdate={handleUpdateEdge}
             onDelete={handleDeleteEdge}

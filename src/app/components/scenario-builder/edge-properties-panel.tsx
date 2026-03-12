@@ -3,7 +3,14 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { ScrollArea } from "../ui/scroll-area";
-import type { NodeConnection, ScenarioNode } from "./node-types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import type { EdgeCondition, NodeConnection, ScenarioNode } from "./node-types";
 
 interface EdgePropertiesPanelProps {
   edge: NodeConnection;
@@ -15,6 +22,7 @@ interface EdgePropertiesPanelProps {
 
 export function EdgePropertiesPanel({ edge, nodes, onClose, onUpdate, onDelete }: EdgePropertiesPanelProps) {
   const fromNode = nodes.find((n) => n.id === edge.from);
+  const isFromCheck = fromNode?.type === 'check';
   const toNode = nodes.find((n) => n.id === edge.to);
 
   const fromLabel = fromNode
@@ -52,7 +60,30 @@ export function EdgePropertiesPanel({ edge, nodes, onClose, onUpdate, onDelete }
             <div className="text-sm font-mono bg-muted rounded px-2 py-1.5 truncate">{toLabel}</div>
           </div>
 
-          <div className="space-y-2">
+          {/* Condition — only relevant for edges from a Check node */}
+          {isFromCheck && (
+            <div className="space-y-2">
+              <Label>Condition</Label>
+              <Select
+                value={edge.condition ?? 'ANY'}
+                onValueChange={(val) => onUpdate({ condition: val as EdgeCondition })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PASS">✓ PASS — all checks passed</SelectItem>
+                  <SelectItem value="FAIL">✗ FAIL — any check failed</SelectItem>
+                  <SelectItem value="ANY">ANY — always (fallback)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                The executor follows PASS/FAIL edges based on the check result. ANY edges are used as fallback if no conditional edge matches.
+              </p>
+            </div>
+          )}
+
+          {!isFromCheck && <div className="space-y-2">
             <Label htmlFor="weight">Weight</Label>
             <div className="flex items-center gap-2">
               <Input
@@ -76,7 +107,7 @@ export function EdgePropertiesPanel({ edge, nodes, onClose, onUpdate, onDelete }
             <p className="text-xs text-muted-foreground">
               Probability of this path (0.0–1.0). Outgoing edges from a node should sum to 1.0.
             </p>
-          </div>
+          </div>}
 
           <div className="pt-4 border-t border-border">
             <Button variant="destructive" className="w-full gap-2" onClick={onDelete}>

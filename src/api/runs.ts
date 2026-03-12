@@ -4,6 +4,7 @@ import type {
   CreateTestRunRequest,
   MetricPointResponse,
   ReportResponse,
+  RunComparisonResponse,
 } from './types';
 
 export const runsApi = {
@@ -22,4 +23,9 @@ export const runsApi = {
     ),
 
   report: (id: string) => http.get<ReportResponse>(`/api/runs/${id}/report`),
+
+  rerun: (id: string) => http.post<TestRunResponse>(`/api/runs/${id}/rerun`),
+
+  compare: (id: string, baselineId: string) =>
+    http.get<RunComparisonResponse>(`/api/runs/${id}/compare?baselineId=${baselineId}`),
 };

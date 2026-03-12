@@ -21,7 +21,8 @@ import { Play } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 import { scenariosApi } from "../../api/scenarios";
 import { runsApi } from "../../api/runs";
-import type { ScenarioResponse, ProfileType } from "../../api/types";
+import { poolsApi } from "../../api/pools";
+import type { ScenarioResponse, ProfileType, PassFailCriteriaDto, AgentPoolResponse } from "../../api/types";
 
 interface TestConfigModalProps {
   open: boolean;
@@ -40,7 +41,9 @@ const profileTypeMap: Record<UiProfile, ProfileType> = {
 
 export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalProps) {
   const [scenarios, setScenarios] = useState<ScenarioResponse[]>([]);
+  const [pools, setPools] = useState<AgentPoolResponse[]>([]);
   const [scenarioId, setScenarioId] = useState<string>('');
+  const [poolId, setPoolId] = useState<string>('none');
   const [loadProfile, setLoadProfile] = useState<UiProfile>('ramp-up');
   const [totalVus, setTotalVus] = useState(1000);
 
@@ -62,6 +65,11 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
   const [steps, setSteps] = useState(5);
   const [stepDurSec, setStepDurSec] = useState(60);
 
+  // Pass/Fail criteria
+  const [criteriaEnabled, setCriteriaEnabled] = useState(false);
+  const [maxErrorRate, setMaxErrorRate] = useState<string>('');
+  const [maxLatencyP99, setMaxLatencyP99] = useState<string>('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,6 +79,7 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
         setScenarios(list);
         if (list.length > 0 && !scenarioId) setScenarioId(list[0].id);
       }).catch(() => {});
+      poolsApi.list().then(setPools).catch(() => {});
     }
   }, [open]);
 
@@ -144,6 +153,14 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
     }
   };
 
+  const buildCriteria = (): PassFailCriteriaDto | null => {
+    if (!criteriaEnabled) return null;
+    const c: PassFailCriteriaDto = {};
+    if (maxErrorRate !== '') c.maxErrorRate = Number(maxErrorRate);
+    if (maxLatencyP99 !== '') c.maxLatencyP99Ms = Number(maxLatencyP99);
+    return (c.maxErrorRate != null || c.maxLatencyP99Ms != null) ? c : null;
+  };
+
   const handleStartTest = async () => {
     if (!scenarioId) { setError('Выберите сценарий'); return; }
     setLoading(true);
@@ -154,6 +171,8 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
         profileType: profileTypeMap[loadProfile],
         profileParams: buildParams(),
         totalVus,
+        criteria: buildCriteria(),
+        poolId: poolId === 'none' ? null : poolId,
       });
       onStartTest(run.id);
       onClose();
@@ -184,6 +203,21 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
                 <SelectContent>
                   {scenarios.map((s) => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Пул агентов</Label>
+              <Select value={poolId} onValueChange={setPoolId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Все доступные агенты" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— все доступные агенты —</SelectItem>
+                  {pools.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -312,6 +346,51 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
                 </div>
               </div>
             )}
+
+            {/* Pass/Fail Criteria */}
+            <div className="space-y-3 pt-2 border-t border-border">
+              <div className="flex items-center justify-between">
+                <Label className="font-semibold">Критерии прохождения</Label>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={criteriaEnabled}
+                  onClick={() => setCriteriaEnabled((v) => !v)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${criteriaEnabled ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${criteriaEnabled ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+              {criteriaEnabled && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Макс. ошибок (%)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.1}
+                      placeholder="напр. 5"
+                      value={maxErrorRate}
+                      onChange={(e) => setMaxErrorRate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Макс. P99 задержка (мс)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="напр. 2000"
+                      value={maxLatencyP99}
+                      onChange={(e) => setMaxLatencyP99(e.target.value)}
+                    />
+                  </div>
+                  <p className="col-span-2 text-xs text-muted-foreground">
+                    Тест автоматически завершится с ошибкой, если любой порог будет превышен за последние 60 с.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right – Preview */}

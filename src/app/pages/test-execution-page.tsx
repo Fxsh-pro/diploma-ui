@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Square, Download } from "lucide-react";
+import { ArrowLeft, Square, Download, RotateCcw } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { StatusBadge } from "../components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -24,6 +24,7 @@ interface ChartPoint {
 interface TestExecutionPageProps {
   runId: string;
   onBack: () => void;
+  onStartTest?: (runId: string) => void;
 }
 
 const CHART_TOOLTIP_STYLE = {
@@ -36,7 +37,7 @@ const CHART_TOOLTIP_STYLE = {
 
 const TERMINAL = new Set(['COMPLETED', 'FAILED', 'STOPPED', 'DONE']);
 
-export function TestExecutionPage({ runId, onBack }: TestExecutionPageProps) {
+export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionPageProps) {
   const [run, setRun] = useState<TestRunResponse | null>(null);
   const [scenarioName, setScenarioName] = useState<string>('');
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
@@ -99,6 +100,15 @@ export function TestExecutionPage({ runId, onBack }: TestExecutionPageProps) {
     await runsApi.stop(runId).catch(() => {});
   };
 
+  const handleRerun = async () => {
+    try {
+      const newRun = await runsApi.rerun(runId);
+      onStartTest?.(newRun.id);
+    } catch {
+      // silently ignore
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Top Bar */}
@@ -134,12 +144,20 @@ export function TestExecutionPage({ runId, onBack }: TestExecutionPageProps) {
               </div>
             </div>
           </div>
-          {!isTerminal && (
-            <Button variant="destructive" size="sm" className="gap-2" onClick={handleStop}>
-              <Square className="h-4 w-4" />
-              Остановить
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {!isTerminal && (
+              <Button variant="destructive" size="sm" className="gap-2" onClick={handleStop}>
+                <Square className="h-4 w-4" />
+                Остановить
+              </Button>
+            )}
+            {isTerminal && onStartTest && (
+              <Button variant="outline" size="sm" className="gap-2" onClick={handleRerun}>
+                <RotateCcw className="h-4 w-4" />
+                Повторить
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -279,6 +297,12 @@ export function TestExecutionPage({ runId, onBack }: TestExecutionPageProps) {
                       <span className="font-mono text-xs">{new Date(run.finishedAt).toLocaleString()}</span>
                     </div>
                   )}
+                  {run.failureReason && (
+                    <div className="pt-2 border-t border-border">
+                      <span className="text-destructive text-xs font-medium">Причина сбоя:</span>
+                      <p className="text-xs text-destructive mt-0.5">{run.failureReason}</p>
+                    </div>
+                  )}
                 </div>
               )}
               {latest && (
@@ -363,6 +387,12 @@ export function TestExecutionPage({ runId, onBack }: TestExecutionPageProps) {
                     <div className="flex justify-between"><span className="text-muted-foreground">Создан:</span><span className="font-mono text-xs">{new Date(run.createdAt).toLocaleString()}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Начало:</span><span className="font-mono text-xs">{run.startedAt ? new Date(run.startedAt).toLocaleString() : '—'}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Конец:</span><span className="font-mono text-xs">{run.finishedAt ? new Date(run.finishedAt).toLocaleString() : '—'}</span></div>
+                    {run.failureReason && (
+                      <div className="pt-2 border-t border-border">
+                        <span className="text-destructive text-xs font-medium">Причина сбоя:</span>
+                        <p className="text-xs text-destructive mt-0.5">{run.failureReason}</p>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <p className="text-muted-foreground">Загрузка…</p>

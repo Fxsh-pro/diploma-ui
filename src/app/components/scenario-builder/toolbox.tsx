@@ -1,19 +1,15 @@
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Input } from "../ui/input";
-import { nodeTypes } from "./node-types";
-import { cn } from "../ui/utils";
-import { Search } from "lucide-react";
-import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Input } from '../ui/input';
+import { nodeTypes } from './node-types';
+import { cn } from '../ui/utils';
+import { Search } from 'lucide-react';
+import { useState } from 'react';
 
-interface ToolboxProps {
-  onNodeDragStart?: (nodeType: string) => void;
-}
-
-export function Toolbox({ onNodeDragStart }: ToolboxProps) {
-  const [searchQuery, setSearchQuery] = useState("");
+export function Toolbox() {
+  const [searchQuery, setSearchQuery] = useState('');
 
   const filteredNodes = nodeTypes.filter((node) =>
-    node.label.toLowerCase().includes(searchQuery.toLowerCase())
+    node.label.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const categories = {
@@ -21,6 +17,13 @@ export function Toolbox({ onNodeDragStart }: ToolboxProps) {
     request: filteredNodes.filter((n) => n.category === 'request'),
     logic: filteredNodes.filter((n) => n.category === 'logic'),
     control: filteredNodes.filter((n) => n.category === 'control'),
+  };
+
+  const categoryLabels: Record<string, string> = {
+    system: 'System Nodes',
+    request: 'Request Nodes',
+    logic: 'Logic Nodes',
+    control: 'Control Flow',
   };
 
   return (
@@ -39,122 +42,45 @@ export function Toolbox({ onNodeDragStart }: ToolboxProps) {
         </div>
       </CardHeader>
       <CardContent className="flex-1 overflow-y-auto space-y-4 pb-4">
-        {/* System Nodes */}
-        {categories.system.length > 0 && (
-          <div>
-            <h4 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-              <span>System Nodes</span>
-            </h4>
-            <div className="space-y-1.5">
-              {categories.system.map((node) => {
-                const Icon = node.icon;
-                return (
-                  <div
-                    key={node.id}
-                    draggable
-                    onDragStart={() => onNodeDragStart?.(node.type)}
-                    className={cn(
-                      "flex items-center gap-2 p-2 rounded-md border border-border bg-card cursor-move hover:bg-accent/50 transition-colors"
-                    )}
-                  >
-                    <div className={cn("flex h-7 w-7 items-center justify-center rounded text-white", node.color)}>
-                      <Icon className="h-4 w-4" />
+        {(Object.keys(categories) as (keyof typeof categories)[]).map((cat) => {
+          const items = categories[cat];
+          if (items.length === 0) return null;
+          return (
+            <div key={cat}>
+              <h4 className="text-xs font-semibold text-muted-foreground mb-2">
+                {categoryLabels[cat]}
+              </h4>
+              <div className="space-y-1.5">
+                {items.map((node) => {
+                  const Icon = node.icon;
+                  return (
+                    <div
+                      key={node.id}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/reactflow', node.type);
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      className={cn(
+                        'flex items-center gap-2 p-2 rounded-md border border-border bg-card cursor-move hover:bg-accent/50 transition-colors',
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'flex h-7 w-7 items-center justify-center rounded text-white',
+                          node.color,
+                        )}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm font-medium">{node.label}</span>
                     </div>
-                    <span className="text-sm font-medium">{node.label}</span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* Request Nodes */}
-        {categories.request.length > 0 && (
-          <div>
-            <h4 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-              <span>Request Nodes</span>
-            </h4>
-            <div className="space-y-1.5">
-              {categories.request.map((node) => {
-                const Icon = node.icon;
-                return (
-                  <div
-                    key={node.id}
-                    draggable
-                    onDragStart={() => onNodeDragStart?.(node.type)}
-                    className={cn(
-                      "flex items-center gap-2 p-2 rounded-md border border-border bg-card cursor-move hover:bg-accent/50 transition-colors"
-                    )}
-                  >
-                    <div className={cn("flex h-7 w-7 items-center justify-center rounded text-white", node.color)}>
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <span className="text-sm font-medium">{node.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Logic Nodes */}
-        {categories.logic.length > 0 && (
-          <div>
-            <h4 className="text-xs font-semibold text-muted-foreground mb-2">
-              Logic Nodes
-            </h4>
-            <div className="space-y-1.5">
-              {categories.logic.map((node) => {
-                const Icon = node.icon;
-                return (
-                  <div
-                    key={node.id}
-                    draggable
-                    onDragStart={() => onNodeDragStart?.(node.type)}
-                    className={cn(
-                      "flex items-center gap-2 p-2 rounded-md border border-border bg-card cursor-move hover:bg-accent/50 transition-colors"
-                    )}
-                  >
-                    <div className={cn("flex h-7 w-7 items-center justify-center rounded text-white", node.color)}>
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <span className="text-sm font-medium">{node.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Control Nodes */}
-        {categories.control.length > 0 && (
-          <div>
-            <h4 className="text-xs font-semibold text-muted-foreground mb-2">
-              Control Flow
-            </h4>
-            <div className="space-y-1.5">
-              {categories.control.map((node) => {
-                const Icon = node.icon;
-                return (
-                  <div
-                    key={node.id}
-                    draggable
-                    onDragStart={() => onNodeDragStart?.(node.type)}
-                    className={cn(
-                      "flex items-center gap-2 p-2 rounded-md border border-border bg-card cursor-move hover:bg-accent/50 transition-colors"
-                    )}
-                  >
-                    <div className={cn("flex h-7 w-7 items-center justify-center rounded text-white", node.color)}>
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <span className="text-sm font-medium">{node.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
+          );
+        })}
       </CardContent>
     </Card>
   );

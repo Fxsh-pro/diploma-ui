@@ -1,8 +1,8 @@
-import { Globe, Clock, CheckCircle, Play, Square } from "lucide-react";
+import { Globe, Clock, CheckCircle, Play, Square, Shuffle } from "lucide-react";
 
 export interface NodeType {
   id: string;
-  type: 'http' | 'delay' | 'check' | 'start' | 'terminal';
+  type: 'http' | 'delay' | 'check' | 'generate' | 'start' | 'terminal';
   label: string;
   icon: any;
   category: 'request' | 'logic' | 'control' | 'system';
@@ -35,6 +35,14 @@ export const nodeTypes: NodeType[] = [
     color: 'bg-success',
   },
   {
+    id: 'generate',
+    type: 'generate',
+    label: 'Generate Data',
+    icon: Shuffle,
+    category: 'logic',
+    color: 'bg-warning',
+  },
+  {
     id: 'start',
     type: 'start',
     label: 'Start',
@@ -52,6 +60,22 @@ export const nodeTypes: NodeType[] = [
   },
 ];
 
+export type CheckOp = 'EQ' | 'NE' | 'LT' | 'LE' | 'GT' | 'GE' | 'CONTAINS' | 'NOT_CONTAINS' | 'EXISTS';
+
+export interface CheckRule {
+  variable: string;
+  op: CheckOp;
+  value?: string;
+}
+
+export interface GenerateRule {
+  name: string;
+  type: 'UUID' | 'EMAIL' | 'TIMESTAMP' | 'RANDOM_INT' | 'RANDOM_STRING';
+  min?: number;
+  max?: number;
+  length?: number;
+}
+
 export interface ScenarioNode {
   id: string;
   type: NodeType['type'];
@@ -60,10 +84,13 @@ export interface ScenarioNode {
   data: any;
 }
 
+export type EdgeCondition = 'ANY' | 'PASS' | 'FAIL';
+
 export interface NodeConnection {
   id: string;
   from: string;
   to: string;
   weight?: number;
+  condition?: EdgeCondition;
   label?: string;
 }

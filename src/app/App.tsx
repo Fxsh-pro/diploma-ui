@@ -64,6 +64,7 @@ export default function App() {
       <TestExecutionPage
         runId={activeRunId}
         onBack={() => { setShowTestExecution(false); setActiveRunId(null); }}
+        onStartTest={handleStartTest}
       />
     );
   }
@@ -141,7 +142,7 @@ export default function App() {
             </div>
           )}
 
-          {activePage === "reports"  && <ReportsPage />}
+          {activePage === "reports"  && <ReportsPage onStartTest={handleStartTest} />}
           {activePage === "agents"   && <AgentsPage />}
           {activePage === "settings" && <SettingsPage />}
         </div>

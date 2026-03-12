@@ -1,4 +1,5 @@
 import { X, Trash2, Plus } from "lucide-react";
+import type { CheckRule, GenerateRule } from "./node-types";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -233,17 +234,184 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
             </div>
           )}
 
-          {nodeType === 'check' && (
-            <div className="space-y-2">
-              <Label htmlFor="condition">Condition</Label>
-              <Input
-                id="condition"
-                value={nodeData?.condition || ''}
-                placeholder="Status code = 200"
-                onChange={(e) => update({ condition: e.target.value })}
-              />
-            </div>
-          )}
+          {nodeType === 'check' && (() => {
+            const checks: CheckRule[] = nodeData?.checks || [];
+
+            const setCheck = (idx: number, patch: Partial<CheckRule>) => {
+              const next = [...checks];
+              next[idx] = { ...next[idx], ...patch };
+              update({ checks: next });
+            };
+
+            const addCheck = () =>
+              update({ checks: [...checks, { variable: '', op: 'EQ', value: '' }] });
+
+            const removeCheck = (idx: number) =>
+              update({ checks: checks.filter((_, i) => i !== idx) });
+
+            const needsValue = (op: CheckRule['op']) => op !== 'EXISTS';
+
+            return (
+              <div className="space-y-3">
+                {/* Auto-injected variable hint */}
+                <div className="rounded-md bg-muted/50 border border-border px-3 py-2 text-xs text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground">Built-in variables</p>
+                  <p><code className="text-primary">_status</code> — HTTP status code (e.g. <code>200</code>)</p>
+                  <p><code className="text-primary">_latency_ms</code> — response time in ms</p>
+                  <p className="pt-1">Use extract rules on an HTTP node to expose body / header values.</p>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label>Check Rules</Label>
+                  <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={addCheck}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add
+                  </Button>
+                </div>
+
+                {checks.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No checks configured</p>
+                )}
+
+                <div className="space-y-3">
+                  {checks.map((rule, i) => (
+                    <div key={i} className="space-y-1.5 p-2 rounded-md border border-border bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">Check #{i + 1}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeCheck(i)}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <Input
+                        className="h-7 text-xs font-mono"
+                        value={rule.variable}
+                        placeholder="variable (e.g. _status, authToken)"
+                        onChange={(e) => setCheck(i, { variable: e.target.value })}
+                      />
+                      <Select
+                        value={rule.op}
+                        onValueChange={(val) => setCheck(i, { op: val as CheckRule['op'] })}
+                      >
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="EQ">== equals</SelectItem>
+                          <SelectItem value="NE">!= not equals</SelectItem>
+                          <SelectItem value="LT">&lt; less than</SelectItem>
+                          <SelectItem value="LE">&lt;= less or equal</SelectItem>
+                          <SelectItem value="GT">&gt; greater than</SelectItem>
+                          <SelectItem value="GE">&gt;= greater or equal</SelectItem>
+                          <SelectItem value="CONTAINS">contains</SelectItem>
+                          <SelectItem value="NOT_CONTAINS">not contains</SelectItem>
+                          <SelectItem value="EXISTS">exists (non-empty)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {needsValue(rule.op) && (
+                        <Input
+                          className="h-7 text-xs font-mono"
+                          value={rule.value ?? ''}
+                          placeholder="expected value"
+                          onChange={(e) => setCheck(i, { value: e.target.value })}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {nodeType === 'generate' && (() => {
+            const rules: GenerateRule[] = nodeData?.rules || [];
+
+            const setRule = (idx: number, patch: Partial<GenerateRule>) => {
+              const next = [...rules];
+              next[idx] = { ...next[idx], ...patch };
+              update({ rules: next });
+            };
+
+            const addRule = () =>
+              update({ rules: [...rules, { name: '', type: 'UUID' }] });
+
+            const removeRule = (idx: number) =>
+              update({ rules: rules.filter((_, i) => i !== idx) });
+
+            return (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Generate Variables</Label>
+                  <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={addRule}>
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add
+                  </Button>
+                </div>
+                {rules.length === 0 && (
+                  <p className="text-xs text-muted-foreground">No variables configured</p>
+                )}
+                <div className="space-y-3">
+                  {rules.map((rule, i) => (
+                    <div key={i} className="space-y-1.5 p-2 rounded-md border border-border bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-muted-foreground">Variable #{i + 1}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeRule(i)}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <Input
+                        className="h-7 text-xs"
+                        value={rule.name}
+                        placeholder="Variable name (e.g. userId)"
+                        onChange={(e) => setRule(i, { name: e.target.value })}
+                      />
+                      <Select
+                        value={rule.type}
+                        onValueChange={(val) => setRule(i, { type: val as GenerateRule['type'] })}
+                      >
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="UUID">UUID v4</SelectItem>
+                          <SelectItem value="EMAIL">Random Email</SelectItem>
+                          <SelectItem value="TIMESTAMP">Timestamp (ms)</SelectItem>
+                          <SelectItem value="RANDOM_INT">Random Integer</SelectItem>
+                          <SelectItem value="RANDOM_STRING">Random String</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {rule.type === 'RANDOM_INT' && (
+                        <div className="flex gap-1">
+                          <Input
+                            className="h-7 text-xs"
+                            type="number"
+                            placeholder="Min"
+                            value={rule.min ?? ''}
+                            onChange={(e) => setRule(i, { min: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          />
+                          <Input
+                            className="h-7 text-xs"
+                            type="number"
+                            placeholder="Max"
+                            value={rule.max ?? ''}
+                            onChange={(e) => setRule(i, { max: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          />
+                        </div>
+                      )}
+                      {rule.type === 'RANDOM_STRING' && (
+                        <Input
+                          className="h-7 text-xs"
+                          type="number"
+                          placeholder="Length (default 16)"
+                          value={rule.length ?? ''}
+                          onChange={(e) => setRule(i, { length: e.target.value === '' ? undefined : Number(e.target.value) })}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Action buttons */}
           <div className="pt-4 border-t border-border">

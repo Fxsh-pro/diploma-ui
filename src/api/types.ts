@@ -2,6 +2,18 @@
 
 export type AgentStatus = 'OFFLINE' | 'REGISTERING' | 'IDLE' | 'RUNNING' | 'STOPPING';
 
+export interface AgentPoolResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface CreateAgentPoolRequest {
+  name: string;
+  description?: string;
+}
+
 export interface AgentResponse {
   id: string;
   name: string;
@@ -12,6 +24,7 @@ export interface AgentResponse {
   ramUsage: number | null;
   lastSeen: string | null;
   createdAt: string;
+  poolId: string | null;
 }
 
 export interface AgentTokenResponse {
@@ -21,8 +34,24 @@ export interface AgentTokenResponse {
 
 // ─── Scenarios ────────────────────────────────────────────────────────────────
 
-export type NodeType = 'START' | 'HTTP' | 'DELAY' | 'CHECK' | 'TERMINAL';
+export type NodeType = 'START' | 'HTTP' | 'DELAY' | 'CHECK' | 'GENERATE' | 'TERMINAL';
 export type ExtractFrom = 'BODY' | 'HEADER';
+export type CheckOp = 'EQ' | 'NE' | 'LT' | 'LE' | 'GT' | 'GE' | 'CONTAINS' | 'NOT_CONTAINS' | 'EXISTS';
+
+export interface CheckRuleDto {
+  variable: string;
+  op: CheckOp;
+  value?: string;
+}
+export type GenerateType = 'UUID' | 'EMAIL' | 'TIMESTAMP' | 'RANDOM_INT' | 'RANDOM_STRING';
+
+export interface GenerateRuleDto {
+  name: string;
+  type: GenerateType;
+  min?: number;
+  max?: number;
+  length?: number;
+}
 
 export interface ExtractRuleDto {
   name: string;
@@ -43,15 +72,20 @@ export interface ScenarioNodeDto {
   name: string;
   config: NodeConfigDto;
   extract: ExtractRuleDto[];
+  generate: GenerateRuleDto[];
+  checks: CheckRuleDto[];
   thinkTimeMs: number;
   x?: number;
   y?: number;
 }
 
+export type EdgeCondition = 'ANY' | 'PASS' | 'FAIL';
+
 export interface ScenarioEdgeDto {
   from: number;
   to: number;
   weight: number;
+  condition?: EdgeCondition;
 }
 
 export interface ScenarioGraphDto {
@@ -94,6 +128,13 @@ export interface TestRunResponse {
   startedAt: string | null;
   finishedAt: string | null;
   createdAt: string;
+  failureReason?: string | null;
+  parentRunId?: string | null;
+}
+
+export interface PassFailCriteriaDto {
+  maxErrorRate?: number | null;    // 0–100 %
+  maxLatencyP99Ms?: number | null; // ms
 }
 
 export interface CreateTestRunRequest {
@@ -101,6 +142,8 @@ export interface CreateTestRunRequest {
   profileType: ProfileType;
   profileParams: Record<string, number>;
   totalVus: number;
+  criteria?: PassFailCriteriaDto | null;
+  poolId?: string | null;
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
@@ -126,4 +169,9 @@ export interface ReportResponse {
   latencyP90: number;
   latencyP99: number;
   errorRate: number;
+}
+
+export interface RunComparisonResponse {
+  current: ReportResponse;
+  baseline: ReportResponse;
 }
