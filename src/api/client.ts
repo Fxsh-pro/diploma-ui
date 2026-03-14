@@ -1,13 +1,19 @@
 import { API_BASE_URL } from './config';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = localStorage.getItem('token');
+  const authHeader: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {};
   const res = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: { 'Content-Type': 'application/json', ...authHeader, ...init?.headers },
     ...init,
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`${res.status} ${res.statusText}${text ? ': ' + text : ''}`);
+    let body: unknown;
+    try { body = JSON.parse(text); } catch { body = undefined; }
+    const err = new Error(`${res.status} ${res.statusText}`) as Error & { body?: unknown };
+    err.body = body;
+    throw err;
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

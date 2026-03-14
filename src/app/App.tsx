@@ -7,15 +7,20 @@ import { TestExecutionPage } from "./pages/test-execution-page";
 import { ReportsPage } from "./pages/reports-page";
 import { AgentsPage } from "./pages/agents-page";
 import { SettingsPage } from "./pages/settings-page";
+import { HistoryPage } from "./pages/history-page";
+import { LoginPage } from "./pages/login-page";
 import { TestConfigModal } from "./components/test-config-modal";
 import { RecentScenarios } from "./components/dashboard/recent-scenarios";
 import { ActiveTestsTable } from "./components/dashboard/active-tests-table";
 import { Toaster } from "./components/ui/sonner";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
-export default function App() {
+function AuthenticatedApp() {
   if (typeof document !== 'undefined') {
     document.documentElement.classList.add('dark');
   }
+
+  const { canDo } = useAuth();
 
   const [activePage, setActivePage] = useState("dashboard");
   const [isSideNavOpen, setIsSideNavOpen] = useState(false);
@@ -75,6 +80,7 @@ export default function App() {
     tests: "Тесты",
     agents: "Агенты",
     reports: "Отчеты",
+    history: "История изменений",
     settings: "Настройки",
   } as Record<string, string>)[activePage] ?? "Панель управления";
 
@@ -109,12 +115,14 @@ export default function App() {
                     Создание и управление сценариями нагрузочного тестирования
                   </p>
                 </div>
-                <button
-                  onClick={() => setShowScenarioBuilder(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  Создать сценарий
-                </button>
+                {canDo('MANAGE_SCENARIOS') && (
+                  <button
+                    onClick={() => setShowScenarioBuilder(true)}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    Создать сценарий
+                  </button>
+                )}
               </div>
               <RecentScenarios
                 limit={0}
@@ -131,12 +139,14 @@ export default function App() {
                   <h2 className="text-2xl font-bold">Тесты</h2>
                   <p className="text-muted-foreground">Просмотр и управление нагрузочными тестами</p>
                 </div>
-                <button
-                  onClick={() => setShowTestConfig(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  Новый тест
-                </button>
+                {canDo('MANAGE_TEST_RUNS') && (
+                  <button
+                    onClick={() => setShowTestConfig(true)}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    Новый тест
+                  </button>
+                )}
               </div>
               <ActiveTestsTable showAll onView={handleViewRun} />
             </div>
@@ -144,6 +154,7 @@ export default function App() {
 
           {activePage === "reports"  && <ReportsPage onStartTest={handleStartTest} />}
           {activePage === "agents"   && <AgentsPage />}
+          {activePage === "history"  && <HistoryPage />}
           {activePage === "settings" && <SettingsPage />}
         </div>
       </main>
@@ -156,5 +167,18 @@ export default function App() {
 
       <Toaster />
     </div>
+  );
+}
+
+function AppContent() {
+  const { user } = useAuth();
+  return user ? <AuthenticatedApp /> : <LoginPage />;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

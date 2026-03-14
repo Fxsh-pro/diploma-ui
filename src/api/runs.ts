@@ -1,3 +1,4 @@
+import { API_BASE_URL } from './config';
 import { http } from './client';
 import type {
   TestRunResponse,
@@ -6,6 +7,20 @@ import type {
   ReportResponse,
   RunComparisonResponse,
 } from './types';
+
+async function downloadFile(path: string, filename: string): Promise<void> {
+  const token = localStorage.getItem('token');
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await fetch(`${API_BASE_URL}${path}`, { headers });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export const runsApi = {
   list: (status?: string) =>
@@ -23,6 +38,9 @@ export const runsApi = {
     ),
 
   report: (id: string) => http.get<ReportResponse>(`/api/runs/${id}/report`),
+
+  reportPdf: (id: string) =>
+    downloadFile(`/api/runs/${id}/report/pdf`, `loadforge-report-${id.slice(0, 8)}.pdf`),
 
   rerun: (id: string) => http.post<TestRunResponse>(`/api/runs/${id}/rerun`),
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Save, Play, Settings } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import {
   useNodesState,
   useEdgesState,
@@ -234,13 +235,14 @@ function canvasToGraph(nodes: Node[], edges: Edge[]): ScenarioGraphDto {
 // ─── Page component ───────────────────────────────────────────────────────────
 
 export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageProps) {
+  const { canDo } = useAuth();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [scenarioName, setScenarioName] = useState('Новый сценарий');
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [saveMsg, setSaveMsg] = useState<{ text: string; error: boolean } | null>(null);
 
   useEffect(() => {
     if (!scenarioId) return;
@@ -325,10 +327,15 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
       } else {
         await scenariosApi.create({ name: scenarioName, graph });
       }
-      setSaveMsg('Сохранено');
+      setSaveMsg({ text: 'Сохранено', error: false });
       setTimeout(() => setSaveMsg(null), 2000);
-    } catch {
-      setSaveMsg('Ошибка сохранения');
+    } catch (err: unknown) {
+      const body = (err as any)?.body;
+      if (body?.errors?.length) {
+        setSaveMsg({ text: body.errors.map((e: any) => e.message).join('; '), error: true });
+      } else {
+        setSaveMsg({ text: 'Ошибка сохранения', error: true });
+      }
     } finally {
       setSaving(false);
     }
@@ -376,19 +383,17 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {saveMsg && <span className="text-sm text-muted-foreground">{saveMsg}</span>}
-          <Button variant="outline" className="gap-2">
-            <Settings className="h-4 w-4" />
-            Settings
-          </Button>
-          <Button variant="secondary" className="gap-2" onClick={handleSave} disabled={saving}>
-            <Save className="h-4 w-4" />
-            {saving ? 'Сохранение…' : 'Сохранить'}
-          </Button>
-          <Button className="gap-2">
-            <Play className="h-4 w-4" />
-            Run Test
-          </Button>
+          {saveMsg && (
+            <span className={`text-sm max-w-md truncate ${saveMsg.error ? 'text-destructive' : 'text-muted-foreground'}`} title={saveMsg.text}>
+              {saveMsg.text}
+            </span>
+          )}
+          {canDo('MANAGE_SCENARIOS') && (
+            <Button variant="secondary" className="gap-2" onClick={handleSave} disabled={saving}>
+              <Save className="h-4 w-4" />
+              {saving ? 'Сохранение…' : 'Сохранить'}
+            </Button>
+          )}
         </div>
       </header>
 

@@ -23,6 +23,7 @@ import { cn } from "../components/ui/utils";
 import { agentsApi } from "../../api/agents";
 import { poolsApi } from "../../api/pools";
 import type { AgentResponse, AgentPoolResponse } from "../../api/types";
+import { useAuth } from "../context/AuthContext";
 
 const statusConfig: Record<string, { color: string; bg: string; dot: string; label: string }> = {
   IDLE:        { color: "text-success",          bg: "bg-success/10 border-success",   dot: "bg-success",          label: "🟢 Онлайн (Простой)" },
@@ -128,6 +129,7 @@ function PoolColumn({ poolId, label, agents, onDrop, onDelete }: PoolColumnProps
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function AgentsPage() {
+  const { canDo } = useAuth();
   const [agents, setAgents] = useState<AgentResponse[]>([]);
   const [pools, setPools] = useState<AgentPoolResponse[]>([]);
   const [installCmd, setInstallCmd] = useState<string | null>(null);
@@ -235,14 +237,18 @@ export function AgentsPage() {
               Пулы
             </button>
           </div>
-          <Button variant="outline" className="gap-2" onClick={() => setShowCreatePool(true)}>
-            <Plus className="h-4 w-4" />
-            Создать пул
-          </Button>
-          <Button className="gap-2" onClick={handleGenerateToken}>
-            <Plus className="h-4 w-4" />
-            Добавить агент
-          </Button>
+          {canDo('MANAGE_POOLS') && (
+            <Button variant="outline" className="gap-2" onClick={() => setShowCreatePool(true)}>
+              <Plus className="h-4 w-4" />
+              Создать пул
+            </Button>
+          )}
+          {canDo('GENERATE_TOKEN') && (
+            <Button className="gap-2" onClick={handleGenerateToken}>
+              <Plus className="h-4 w-4" />
+              Добавить агент
+            </Button>
+          )}
         </div>
       </div>
 
@@ -312,20 +318,22 @@ export function AgentsPage() {
                   label={pool.name}
                   agents={agents.filter((a) => a.poolId === pool.id)}
                   onDrop={(agentId) => handleAssignPool(agentId, pool.id)}
-                  onDelete={() => handleDeletePool(pool.id)}
+                  onDelete={canDo('MANAGE_POOLS') ? () => handleDeletePool(pool.id) : undefined}
                 />
               ))}
 
               {/* Quick-add pool column */}
-              <div className="flex flex-col min-w-[180px] justify-start pt-8">
-                <button
-                  onClick={() => setShowCreatePool(true)}
-                  className="flex items-center gap-2 rounded-xl border-2 border-dashed border-border px-4 py-3 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                >
-                  <Plus className="h-4 w-4" />
-                  Новый пул
-                </button>
-              </div>
+              {canDo('MANAGE_POOLS') && (
+                <div className="flex flex-col min-w-[180px] justify-start pt-8">
+                  <button
+                    onClick={() => setShowCreatePool(true)}
+                    className="flex items-center gap-2 rounded-xl border-2 border-dashed border-border px-4 py-3 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Новый пул
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

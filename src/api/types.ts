@@ -1,3 +1,35 @@
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+export interface UserResponse {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  createdAt: string;
+}
+
+export interface LoginResponse {
+  token: string;
+  user: UserResponse;
+}
+
+export interface CurrentUser {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+}
+
+export type Action =
+  | 'MANAGE_AGENTS'
+  | 'MANAGE_POOLS'
+  | 'GENERATE_TOKEN'
+  | 'MANAGE_SCENARIOS'
+  | 'MANAGE_TEST_RUNS'
+  | 'VIEW_METRICS'
+  | 'MANAGE_USERS'
+  | 'VIEW_AUDIT_LOG';
+
 // ─── Agents ──────────────────────────────────────────────────────────────────
 
 export type AgentStatus = 'OFFLINE' | 'REGISTERING' | 'IDLE' | 'RUNNING' | 'STOPPING';
@@ -174,4 +206,19 @@ export interface ReportResponse {
 export interface RunComparisonResponse {
   current: ReportResponse;
   baseline: ReportResponse;
+}
+
+// ─── History / Audit Log ──────────────────────────────────────────────────────
+
+export type HistoryEntityType = 'SCENARIO' | 'USER' | 'TEST_RUN';
+
+export interface AuditLogResponse {
+  id: string;
+  userId: string;
+  username: string | null;
+  action: string;
+  entityType: string;
+  entityId: string;
+  payload: string | null;
+  createdAt: string;
 }

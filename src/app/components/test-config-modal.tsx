@@ -45,8 +45,6 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
   const [scenarioId, setScenarioId] = useState<string>('');
   const [poolId, setPoolId] = useState<string>('none');
   const [loadProfile, setLoadProfile] = useState<UiProfile>('ramp-up');
-  const [totalVus, setTotalVus] = useState(1000);
-
   // RAMP_UP / CONSTANT shared fields
   const [startVus, setStartVus] = useState(10);
   const [peakVus, setPeakVus] = useState(1000);
@@ -116,13 +114,21 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
       pts.push({ time: 0, vu });
       for (let i = 0; i < steps; i++) {
         vu += stepSize;
-        pts.push({ time: t, vu });
         t += Math.ceil(stepDurSec / 60);
         pts.push({ time: t, vu });
       }
     }
     return pts;
   })();
+
+  const derivedTotalVus = (): number => {
+    switch (loadProfile) {
+      case 'ramp-up': return peakVus;
+      case 'constant': return peakVus;
+      case 'spike': return peakVus;
+      case 'step': return startVus + steps * stepSize;
+    }
+  };
 
   const buildParams = (): Record<string, number> => {
     switch (loadProfile) {
@@ -170,7 +176,7 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
         scenarioId,
         profileType: profileTypeMap[loadProfile],
         profileParams: buildParams(),
-        totalVus,
+        totalVus: derivedTotalVus(),
         criteria: buildCriteria(),
         poolId: poolId === 'none' ? null : poolId,
       });
@@ -223,17 +229,6 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="totalVus">Всего виртуальных пользователей</Label>
-              <Input
-                id="totalVus"
-                type="number"
-                value={totalVus}
-                onChange={(e) => setTotalVus(Number(e.target.value))}
-                min={1}
-              />
-            </div>
-
             <div className="space-y-3">
               <Label>Профиль нагрузки</Label>
               <RadioGroup value={loadProfile} onValueChange={(v) => setLoadProfile(v as UiProfile)}>
@@ -253,25 +248,25 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Нач. VU</Label>
+                    <Label className="whitespace-nowrap">Нач. VU</Label>
                     <Input type="number" value={startVus} onChange={(e) => setStartVus(Number(e.target.value))} min={0} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Пик VU</Label>
+                    <Label className="whitespace-nowrap">Пик VU</Label>
                     <Input type="number" value={peakVus} onChange={(e) => setPeakVus(Number(e.target.value))} min={1} />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Разгон (с)</Label>
+                    <Label className="whitespace-nowrap">Разгон (с)</Label>
                     <Input type="number" value={rampUpSec} onChange={(e) => setRampUpSec(Number(e.target.value))} min={0} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Удержание (с)</Label>
+                    <Label className="whitespace-nowrap">Удержание (с)</Label>
                     <Input type="number" value={holdSec} onChange={(e) => setHoldSec(Number(e.target.value))} min={0} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Спад (с)</Label>
+                    <Label className="whitespace-nowrap">Спад (с)</Label>
                     <Input type="number" value={rampDownSec} onChange={(e) => setRampDownSec(Number(e.target.value))} min={0} />
                   </div>
                 </div>
@@ -282,11 +277,11 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Целевые VU</Label>
+                    <Label className="whitespace-nowrap">Целевые VU</Label>
                     <Input type="number" value={peakVus} onChange={(e) => setPeakVus(Number(e.target.value))} min={1} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Длительность (с)</Label>
+                    <Label className="whitespace-nowrap">Длительность (с)</Label>
                     <Input type="number" value={holdSec} onChange={(e) => setHoldSec(Number(e.target.value))} min={1} />
                   </div>
                 </div>
@@ -297,25 +292,25 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Базовые VU</Label>
+                    <Label className="whitespace-nowrap">Базовые VU</Label>
                     <Input type="number" value={baselineVus} onChange={(e) => setBaselineVus(Number(e.target.value))} min={0} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Пик VU</Label>
+                    <Label className="whitespace-nowrap">Пик VU</Label>
                     <Input type="number" value={peakVus} onChange={(e) => setPeakVus(Number(e.target.value))} min={1} />
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Пик (с)</Label>
+                    <Label className="whitespace-nowrap">Пик (с)</Label>
                     <Input type="number" value={spikeSec} onChange={(e) => setSpikeSec(Number(e.target.value))} min={1} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Восст. (с)</Label>
+                    <Label className="whitespace-nowrap">Восст. (с)</Label>
                     <Input type="number" value={recoverySec} onChange={(e) => setRecoverySec(Number(e.target.value))} min={1} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Кол-во пиков</Label>
+                    <Label className="whitespace-nowrap">Кол-во пиков</Label>
                     <Input type="number" value={spikeCount} onChange={(e) => setSpikeCount(Number(e.target.value))} min={1} />
                   </div>
                 </div>
@@ -326,21 +321,21 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Нач. VU</Label>
+                    <Label className="whitespace-nowrap">Нач. VU</Label>
                     <Input type="number" value={startVus} onChange={(e) => setStartVus(Number(e.target.value))} min={0} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Шаг VU</Label>
+                    <Label className="whitespace-nowrap">Шаг VU</Label>
                     <Input type="number" value={stepSize} onChange={(e) => setStepSize(Number(e.target.value))} min={1} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Шагов</Label>
+                    <Label className="whitespace-nowrap">Шагов</Label>
                     <Input type="number" value={steps} onChange={(e) => setSteps(Number(e.target.value))} min={1} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Длит. шага (с)</Label>
+                    <Label className="whitespace-nowrap">Длит. шага (с)</Label>
                     <Input type="number" value={stepDurSec} onChange={(e) => setStepDurSec(Number(e.target.value))} min={1} />
                   </div>
                 </div>
@@ -408,7 +403,7 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                   <XAxis dataKey="time" stroke="var(--color-muted-foreground)" fontSize={12} label={{ value: 'мин', position: 'insideBottom', offset: -5 }} />
                   <YAxis stroke="var(--color-muted-foreground)" fontSize={12} />
-                  <Area type="monotone" dataKey="vu" stroke="var(--color-primary)" strokeWidth={2} fillOpacity={1} fill="url(#colorVU)" />
+                  <Area type={loadProfile === 'step' ? 'stepAfter' : 'monotone'} dataKey="vu" stroke="var(--color-primary)" strokeWidth={2} fillOpacity={1} fill="url(#colorVU)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

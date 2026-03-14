@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Square, Download, RotateCcw } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/button";
 import { StatusBadge } from "../components/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -38,6 +39,7 @@ const CHART_TOOLTIP_STYLE = {
 const TERMINAL = new Set(['COMPLETED', 'FAILED', 'STOPPED', 'DONE']);
 
 export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionPageProps) {
+  const { canDo } = useAuth();
   const [run, setRun] = useState<TestRunResponse | null>(null);
   const [scenarioName, setScenarioName] = useState<string>('');
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
@@ -145,13 +147,13 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
             </div>
           </div>
           <div className="flex gap-2">
-            {!isTerminal && (
+            {!isTerminal && canDo('MANAGE_TEST_RUNS') && (
               <Button variant="destructive" size="sm" className="gap-2" onClick={handleStop}>
                 <Square className="h-4 w-4" />
                 Остановить
               </Button>
             )}
-            {isTerminal && onStartTest && (
+            {isTerminal && onStartTest && canDo('MANAGE_TEST_RUNS') && (
               <Button variant="outline" size="sm" className="gap-2" onClick={handleRerun}>
                 <RotateCcw className="h-4 w-4" />
                 Повторить

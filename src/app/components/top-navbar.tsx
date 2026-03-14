@@ -11,6 +11,7 @@ import {
 } from "./ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Badge } from "./ui/badge";
+import { useAuth } from "../context/AuthContext";
 
 interface TopNavbarProps {
   onMenuClick?: () => void;
@@ -18,6 +19,9 @@ interface TopNavbarProps {
 }
 
 export function TopNavbar({ onMenuClick, currentPage = "Dashboard" }: TopNavbarProps) {
+  const { user, logout } = useAuth();
+  const initials = user?.username?.slice(0, 2).toUpperCase() ?? 'U';
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-16 border-b border-border bg-card">
       <div className="flex h-full items-center justify-between px-4 lg:px-6">
@@ -98,23 +102,22 @@ export function TopNavbar({ onMenuClick, currentPage = "Dashboard" }: TopNavbarP
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback>JD</AvatarFallback>
+                  <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
-                <span className="hidden lg:inline">John Doe</span>
+                <span className="hidden lg:inline">{user?.username}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium">John Doe</p>
-                  <p className="text-xs text-muted-foreground">john@company.com</p>
+                  <p className="text-sm font-medium">{user?.username}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>Настройки профиля</DropdownMenuItem>
-              <DropdownMenuItem>Настройки команды</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem className="text-destructive" onClick={logout}>
                 Выйти
               </DropdownMenuItem>
             </DropdownMenuContent>

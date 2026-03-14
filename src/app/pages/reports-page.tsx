@@ -279,6 +279,7 @@ export function ReportsPage({ onStartTest }: ReportsPageProps) {
   const [compLoading, setCompLoading] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [rerunning, setRerunning] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -314,6 +315,18 @@ export function ReportsPage({ onStartTest }: ReportsPageProps) {
       .catch(() => setComparison(null))
       .finally(() => setCompLoading(false));
   }, [selectedRunId, baselineRunId]);
+
+  const handleExportPdf = async () => {
+    if (!selectedRunId) return;
+    setExporting(true);
+    try {
+      await runsApi.reportPdf(selectedRunId);
+    } catch {
+      // silently ignore
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleRerun = async () => {
     if (!selectedRunId) return;
@@ -514,9 +527,14 @@ export function ReportsPage({ onStartTest }: ReportsPageProps) {
                     <RotateCcw className="h-4 w-4" />
                     {rerunning ? 'Запуск…' : 'Повторить тест'}
                   </Button>
-                  <Button variant="outline" className="w-full gap-2">
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={handleExportPdf}
+                    disabled={exporting}
+                  >
                     <Download className="h-4 w-4" />
-                    Экспорт
+                    {exporting ? 'Генерация…' : 'Экспорт PDF'}
                   </Button>
                 </div>
               </CardContent>
