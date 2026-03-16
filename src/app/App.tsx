@@ -8,6 +8,7 @@ import { ReportsPage } from "./pages/reports-page";
 import { AgentsPage } from "./pages/agents-page";
 import { SettingsPage } from "./pages/settings-page";
 import { HistoryPage } from "./pages/history-page";
+import { UsersPage } from "./pages/users-page";
 import { LoginPage } from "./pages/login-page";
 import { TestConfigModal } from "./components/test-config-modal";
 import { RecentScenarios } from "./components/dashboard/recent-scenarios";
@@ -81,6 +82,7 @@ function AuthenticatedApp() {
     agents: "Агенты",
     reports: "Отчеты",
     history: "История изменений",
+    users:   "Пользователи",
     settings: "Настройки",
   } as Record<string, string>)[activePage] ?? "Панель управления";
 
@@ -155,6 +157,7 @@ function AuthenticatedApp() {
           {activePage === "reports"  && <ReportsPage onStartTest={handleStartTest} />}
           {activePage === "agents"   && <AgentsPage />}
           {activePage === "history"  && <HistoryPage />}
+          {activePage === "users"    && <UsersPage />}
           {activePage === "settings" && <SettingsPage />}
         </div>
       </main>

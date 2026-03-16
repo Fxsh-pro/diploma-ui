@@ -1,8 +1,19 @@
 import { http } from './client';
 import type { AuditLogResponse, UserResponse } from './types';
 
+export interface CreateUserRequest {
+  username: string;
+  email: string;
+  password: string;
+  role: string;
+}
+
 export const usersApi = {
   list: () => http.get<UserResponse[]>('/api/users'),
+
+  create: (body: CreateUserRequest) => http.post<UserResponse>('/api/users', body),
+
+  remove: (id: string) => http.delete<void>(`/api/users/${id}`),
 
   auditLog: (params: {
     limit?: number;

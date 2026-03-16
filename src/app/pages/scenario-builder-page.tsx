@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Save } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { ArrowLeft, Save, Wrench, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   useNodesState,
@@ -12,6 +12,7 @@ import {
 } from '@xyflow/react';
 import { Button } from '../components/ui/button';
 import { Toolbox } from '../components/scenario-builder/toolbox';
+import { AiPanel } from '../components/scenario-builder/ai-panel';
 import { Canvas } from '../components/scenario-builder/canvas';
 import { PropertiesPanel } from '../components/scenario-builder/properties-panel';
 import { EdgePropertiesPanel } from '../components/scenario-builder/edge-properties-panel';
@@ -239,10 +240,13 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [scenarioName, setScenarioName] = useState('Новый сценарий');
+  const [editingName, setEditingName] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ text: string; error: boolean } | null>(null);
+  const [leftTab, setLeftTab] = useState<'toolbox' | 'ai'>('toolbox');
 
   useEffect(() => {
     if (!scenarioId) return;
@@ -317,6 +321,15 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
     );
   };
 
+  const handleGraphGenerated = useCallback((graph: ScenarioGraphDto) => {
+    const { nodes: n, edges: e } = graphToCanvas(graph);
+    setNodes(n);
+    setEdges(e);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setLeftTab('toolbox');
+  }, [setNodes, setEdges]);
+
   const handleSave = async () => {
     setSaving(true);
     setSaveMsg(null);
@@ -376,7 +389,24 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="font-semibold">{scenarioName}</h1>
+            {editingName ? (
+              <input
+                ref={nameInputRef}
+                className="font-semibold bg-transparent border-b border-primary outline-none w-64"
+                value={scenarioName}
+                onChange={(e) => setScenarioName(e.target.value)}
+                onBlur={() => setEditingName(false)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingName(false); }}
+              />
+            ) : (
+              <h1
+                className="font-semibold cursor-pointer hover:text-primary transition-colors"
+                title="Нажмите, чтобы переименовать"
+                onClick={() => { setEditingName(true); setTimeout(() => nameInputRef.current?.select(), 0); }}
+              >
+                {scenarioName}
+              </h1>
+            )}
             <p className="text-xs text-muted-foreground">
               {scenarioId ? 'Редактирование сценария' : 'Новый сценарий'}
             </p>
@@ -399,9 +429,44 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
 
       {/* Main Content */}
       <div className="flex h-[calc(100vh-4rem)]">
-        {/* Left Sidebar - Toolbox */}
-        <div className="w-64 border-r border-border p-4">
-          <Toolbox />
+        {/* Left Sidebar */}
+        <div className="w-64 border-r border-border flex flex-col">
+          {/* Tab switcher */}
+          <div className="flex border-b border-border">
+            <button
+              onClick={() => setLeftTab('toolbox')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
+                leftTab === 'toolbox'
+                  ? 'bg-background text-foreground border-b-2 border-primary'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Wrench className="h-3.5 w-3.5" />
+              Ноды
+            </button>
+            <button
+              onClick={() => setLeftTab('ai')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
+                leftTab === 'ai'
+                  ? 'bg-background text-foreground border-b-2 border-primary'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              AI
+            </button>
+          </div>
+          {/* Tab content */}
+          <div className="flex-1 overflow-hidden p-4">
+            {leftTab === 'toolbox' ? (
+              <Toolbox />
+            ) : (
+              <AiPanel
+                currentGraph={nodes.length > 0 ? canvasToGraph(nodes, edges) : null}
+                onGraphGenerated={handleGraphGenerated}
+              />
+            )}
+          </div>
         </div>
 
         {/* Center - Canvas */}
