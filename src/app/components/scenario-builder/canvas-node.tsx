@@ -5,6 +5,7 @@ import { cn } from '../ui/utils';
 export type ScenarioNodeData = {
   nodeType: 'http' | 'delay' | 'check' | 'start' | 'terminal';
   nodeData: any;
+  label?: string;
 };
 
 const handleClass = '!w-4 !h-4 !bg-primary !border-2 !border-background !rounded-full';
@@ -43,6 +44,7 @@ export function ScenarioCanvasNode({ data, selected }: NodeProps) {
   const typeDef = nodeTypeDefs.find((n) => n.type === nodeType);
   if (!typeDef) return null;
   const Icon = typeDef.icon;
+  const label = (data as ScenarioNodeData).nodeData?.label;
 
   return (
     <div
@@ -56,7 +58,12 @@ export function ScenarioCanvasNode({ data, selected }: NodeProps) {
         <Icon className="h-4 w-4" />
         <span className="text-sm font-semibold">{typeDef.label}</span>
       </div>
-      <div className="px-3 py-2 text-sm text-muted-foreground">
+      {label && (
+        <div className="px-3 pt-2 pb-1 text-sm font-semibold text-foreground truncate border-b border-border/50">
+          {label}
+        </div>
+      )}
+      <div className={cn('px-3 py-2 text-sm text-muted-foreground', label && 'pt-2')}>
         {nodeType === 'http' && (
           <div className="font-mono text-foreground">
             {nodeData?.method || 'GET'} {nodeData?.url || '/api/endpoint'}

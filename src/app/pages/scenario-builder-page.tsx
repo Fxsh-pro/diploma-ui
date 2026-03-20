@@ -124,16 +124,22 @@ function graphToCanvas(graph: ScenarioGraphDto): { nodes: Node[]; edges: Edge[] 
       position: { x, y },
       data: {
         nodeType: apiTypeToCanvas(n.type),
-        nodeData:
-          n.type === 'HTTP'
-            ? { method: n.config.method, url: n.config.url, headers: n.config.headers || {}, body: n.config.body, extract: n.extract || [] }
-            : n.type === 'DELAY'
-            ? { duration: String(n.thinkTimeMs) }
-            : n.type === 'GENERATE'
-            ? { rules: n.generate || [] }
-            : n.type === 'CHECK'
-            ? { checks: n.checks || [] }
-            : {},
+        nodeData: (() => {
+          // Only restore label if it was explicitly set (doesn't look auto-generated).
+          // Auto-generated names: "GET /url", "Delay", "Check", "Generate", "Start", "End".
+          const autoNames = new Set(['Delay', 'Check', 'Generate', 'Start', 'End']);
+          const isAutoName = !n.name || autoNames.has(n.name) || /^(GET|POST|PUT|DELETE|PATCH|HEAD) /.test(n.name);
+          const label = isAutoName ? '' : n.name;
+          if (n.type === 'HTTP')
+            return { label, method: n.config.method, url: n.config.url, headers: n.config.headers || {}, body: n.config.body, extract: n.extract || [] };
+          if (n.type === 'DELAY')
+            return { label, duration: String(n.thinkTimeMs) };
+          if (n.type === 'GENERATE')
+            return { label, rules: n.generate || [] };
+          if (n.type === 'CHECK')
+            return { label, checks: n.checks || [] };
+          return {};
+        })(),
       },
     };
   });
@@ -159,13 +165,14 @@ function canvasToGraph(nodes: Node[], edges: Edge[]): ScenarioGraphDto {
     const nodeType = n.data.nodeType as string;
     const nodeData = n.data.nodeData as any;
 
-    const name =
+    const autoName =
       nodeType === 'http'     ? `${nodeData?.method || 'GET'} ${nodeData?.url || ''}` :
       nodeType === 'delay'    ? 'Delay' :
       nodeType === 'check'    ? 'Check' :
       nodeType === 'generate' ? 'Generate' :
       nodeType === 'start'    ? 'Start' :
       nodeType === 'terminal' ? 'End' : nodeType;
+    const name = nodeData?.label?.trim() || autoName;
 
     apiNodes[String(id)] = {
       id,

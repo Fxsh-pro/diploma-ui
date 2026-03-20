@@ -81,6 +81,17 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
 
       <ScrollArea className="h-[calc(100%-60px)]">
         <div className="p-4 space-y-4">
+          {/* Label — common to all node types */}
+          <div className="space-y-2">
+            <Label htmlFor="node-label">Название узла</Label>
+            <Input
+              id="node-label"
+              value={nodeData?.label || ''}
+              placeholder="Например: Оформление заказа"
+              onChange={(e) => update({ label: e.target.value })}
+            />
+          </div>
+
           {nodeType === 'http' && (
             <>
               {/* Method */}
