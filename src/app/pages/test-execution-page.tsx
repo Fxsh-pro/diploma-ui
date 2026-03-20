@@ -47,10 +47,16 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
   const startRef = useRef<string | null>(null);
 
   const fetchMetrics = async (currentRun: TestRunResponse) => {
-    const from = currentRun.startedAt ?? new Date(Date.now() - 3600_000).toISOString();
-    const to = new Date().toISOString();
     try {
-      const points: MetricPointResponse[] = await runsApi.metrics(runId, from, to, 30);
+      let points: MetricPointResponse[];
+      if (TERMINAL.has(currentRun.status)) {
+        const report = await runsApi.report(runId);
+        points = report.timeSeries;
+      } else {
+        const from = currentRun.startedAt ?? new Date(Date.now() - 3600_000).toISOString();
+        const to = new Date().toISOString();
+        points = await runsApi.metrics(runId, from, to, 30);
+      }
       const mapped: ChartPoint[] = points.map((p) => ({
         time: new Date(p.time).toLocaleTimeString(),
         rps: Number(p.rps.toFixed(1)),

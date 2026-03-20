@@ -201,6 +201,7 @@ export interface ReportResponse {
   latencyP90: number;
   latencyP99: number;
   errorRate: number;
+  timeSeries: MetricPointResponse[];
 }
 
 export interface RunComparisonResponse {
