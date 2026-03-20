@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Save, Wrench, Sparkles } from 'lucide-react';
+import { ArrowLeft, Save, Wrench, Sparkles, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   useNodesState,
@@ -19,6 +19,7 @@ import { EdgePropertiesPanel } from '../components/scenario-builder/edge-propert
 import type { ScenarioNode, NodeConnection } from '../components/scenario-builder/node-types';
 import { scenariosApi } from '../../api/scenarios';
 import type { ScenarioNodeDto, ScenarioEdgeDto, ScenarioGraphDto } from '../../api/types';
+import { applyDagreLayout } from '../components/scenario-builder/layout';
 
 interface ScenarioBuilderPageProps {
   scenarioId?: string;
@@ -337,6 +338,10 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
     setLeftTab('toolbox');
   }, [setNodes, setEdges]);
 
+  const handleAutoLayout = useCallback(() => {
+    setNodes((nds) => applyDagreLayout(nds, edges));
+  }, [edges, setNodes]);
+
   const handleSave = async () => {
     setSaving(true);
     setSaveMsg(null);
@@ -425,6 +430,10 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
               {saveMsg.text}
             </span>
           )}
+          <Button variant="outline" className="gap-2" onClick={handleAutoLayout} title="Выровнять граф">
+            <LayoutDashboard className="h-4 w-4" />
+            Выровнять
+          </Button>
           {canDo('MANAGE_SCENARIOS') && (
             <Button variant="secondary" className="gap-2" onClick={handleSave} disabled={saving}>
               <Save className="h-4 w-4" />
