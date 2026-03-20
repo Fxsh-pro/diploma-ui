@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Save, Wrench, Sparkles, LayoutDashboard } from 'lucide-react';
+import { ArrowLeft, Save, Wrench, Sparkles, LayoutDashboard, Download } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   useNodesState,
@@ -338,6 +338,18 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
     setLeftTab('toolbox');
   }, [setNodes, setEdges]);
 
+  const handleExport = useCallback(() => {
+    const graph = canvasToGraph(nodes, edges);
+    const payload = JSON.stringify({ name: scenarioName, graph }, null, 2);
+    const blob = new Blob([payload], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${scenarioName}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [nodes, edges, scenarioName]);
+
   const handleAutoLayout = useCallback(() => {
     setNodes((nds) => applyDagreLayout(nds, edges));
   }, [edges, setNodes]);
@@ -430,6 +442,10 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
               {saveMsg.text}
             </span>
           )}
+          <Button variant="outline" className="gap-2" onClick={handleExport} title="Скачать граф как JSON">
+            <Download className="h-4 w-4" />
+            Экспорт
+          </Button>
           <Button variant="outline" className="gap-2" onClick={handleAutoLayout} title="Выровнять граф">
             <LayoutDashboard className="h-4 w-4" />
             Выровнять
