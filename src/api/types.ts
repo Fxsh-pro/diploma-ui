@@ -58,6 +58,11 @@ export interface AgentResponse {
   lastSeen: string | null;
   createdAt: string;
   poolId: string | null;
+  cpuModel: string | null;
+  cpuCores: number | null;
+  cpuFreqMhz: number | null;
+  ramTotalMb: number | null;
+  currentVus: number;
 }
 
 export interface AgentTokenResponse {

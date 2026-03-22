@@ -371,19 +371,33 @@ export function AgentsPage() {
                     <CardContent className="space-y-4">
                       <div className="space-y-3">
                         <div>
-                          <div className="flex justify-between text-sm mb-1.5">
-                            <span className="text-muted-foreground">CPU</span>
+                          <div className="flex justify-between text-sm mb-1">
+                            <div>
+                              <span className="text-muted-foreground">CPU</span>
+                              {agent.cpuCores != null && (
+                                <span className="text-muted-foreground ml-1.5 text-xs">({agent.cpuCores} ядер)</span>
+                              )}
+                            </div>
                             <span className="font-mono font-semibold">
                               {agent.cpuUsage != null ? `${agent.cpuUsage.toFixed(1)}%` : '—'}
                             </span>
                           </div>
+                          {agent.cpuModel && (
+                            <p className="text-xs text-muted-foreground truncate mb-1" title={agent.cpuModel}>
+                              {agent.cpuModel}
+                            </p>
+                          )}
                           <Progress value={agent.cpuUsage ?? 0} className="h-2" />
                         </div>
                         <div>
                           <div className="flex justify-between text-sm mb-1.5">
                             <span className="text-muted-foreground">RAM</span>
                             <span className="font-mono font-semibold">
-                              {agent.ramUsage != null ? `${agent.ramUsage.toFixed(1)}%` : '—'}
+                              {agent.ramUsage != null && agent.ramTotalMb != null
+                                ? `${((agent.ramUsage / 100) * agent.ramTotalMb / 1024).toFixed(1)} / ${(agent.ramTotalMb / 1024).toFixed(1)} ГБ`
+                                : agent.ramUsage != null
+                                  ? `${agent.ramUsage.toFixed(1)}%`
+                                  : '—'}
                             </span>
                           </div>
                           <Progress value={agent.ramUsage ?? 0} className="h-2" />
@@ -399,6 +413,12 @@ export function AgentsPage() {
                           <span className="text-muted-foreground">URL:</span>
                           <Badge variant="secondary" className="font-mono text-xs max-w-[150px] truncate">{agent.url}</Badge>
                         </div>
+                        {agent.currentVus > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Активных VU:</span>
+                            <span className="font-mono text-xs font-semibold text-accent">{agent.currentVus}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Последний пинг:</span>
                           <span className="font-mono text-xs">
