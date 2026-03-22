@@ -28,7 +28,8 @@ export type Action =
   | 'MANAGE_TEST_RUNS'
   | 'VIEW_METRICS'
   | 'MANAGE_USERS'
-  | 'VIEW_AUDIT_LOG';
+  | 'VIEW_AUDIT_LOG'
+  | 'MANAGE_SCHEDULES';
 
 // ─── Agents ──────────────────────────────────────────────────────────────────
 
@@ -207,6 +208,40 @@ export interface ReportResponse {
 export interface RunComparisonResponse {
   current: ReportResponse;
   baseline: ReportResponse;
+}
+
+// ─── Schedules ────────────────────────────────────────────────────────────────
+
+export type ScheduleType = 'ONE_TIME' | 'RECURRING';
+
+export interface ScheduleResponse {
+  id: string;
+  organizationId: string;
+  scenarioId: string;
+  name: string;
+  scheduleType: ScheduleType;
+  scheduledAt: string | null;
+  cronExpression: string | null;
+  profileType: ProfileType;
+  totalVus: number;
+  enabled: boolean;
+  lastRunAt: string | null;
+  nextRunAt: string | null;
+  createdAt: string;
+  poolId: string | null;
+}
+
+export interface CreateScheduleRequest {
+  name: string;
+  scenarioId: string;
+  scheduleType: ScheduleType;
+  scheduledAt?: string | null;
+  cronExpression?: string | null;
+  profileType: ProfileType;
+  profileParams: Record<string, number>;
+  totalVus: number;
+  criteria?: PassFailCriteriaDto | null;
+  poolId?: string | null;
 }
 
 // ─── History / Audit Log ──────────────────────────────────────────────────────

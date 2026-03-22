@@ -3,12 +3,12 @@ import { authApi } from '../../api/auth';
 import type { CurrentUser, Action } from '../../api/types';
 
 const ROLE_ACTIONS: Record<string, Set<Action>> = {
-  QA_ENGINEER:       new Set(['MANAGE_SCENARIOS', 'MANAGE_TEST_RUNS', 'VIEW_METRICS']),
+  QA_ENGINEER:       new Set(['MANAGE_SCENARIOS', 'MANAGE_TEST_RUNS', 'VIEW_METRICS', 'MANAGE_SCHEDULES']),
   RESOURCE_OPERATOR: new Set(['MANAGE_AGENTS', 'MANAGE_POOLS', 'GENERATE_TOKEN']),
   SYSTEM_ADMIN:      new Set([
     'MANAGE_AGENTS', 'MANAGE_POOLS', 'GENERATE_TOKEN',
     'MANAGE_SCENARIOS', 'MANAGE_TEST_RUNS', 'VIEW_METRICS',
-    'MANAGE_USERS', 'VIEW_AUDIT_LOG',
+    'MANAGE_USERS', 'VIEW_AUDIT_LOG', 'MANAGE_SCHEDULES',
   ]),
 };
 

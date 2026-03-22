@@ -8,6 +8,7 @@ import { ReportsPage } from "./pages/reports-page";
 import { AgentsPage } from "./pages/agents-page";
 import { SettingsPage } from "./pages/settings-page";
 import { HistoryPage } from "./pages/history-page";
+import { SchedulesPage } from "./pages/schedules-page";
 import { UsersPage } from "./pages/users-page";
 import { LoginPage } from "./pages/login-page";
 import { TestConfigModal } from "./components/test-config-modal";
@@ -80,6 +81,7 @@ function AuthenticatedApp() {
     scenarios: "Сценарии",
     tests: "Тесты",
     agents: "Агенты",
+    schedules: "Расписание",
     reports: "Отчеты",
     history: "История изменений",
     users:   "Пользователи",
@@ -154,6 +156,7 @@ function AuthenticatedApp() {
             </div>
           )}
 
+          {activePage === "schedules" && <SchedulesPage />}
           {activePage === "reports"  && <ReportsPage onStartTest={handleStartTest} />}
           {activePage === "agents"   && <AgentsPage />}
           {activePage === "history"  && <HistoryPage />}

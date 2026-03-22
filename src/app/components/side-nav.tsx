@@ -1,4 +1,4 @@
-import { Home, FileText, Play, Server, BarChart3, Settings, X, History, Users } from "lucide-react";
+import { Home, FileText, Play, Server, BarChart3, Settings, X, History, Users, CalendarClock } from "lucide-react";
 import { cn } from "./ui/utils";
 import { Button } from "./ui/button";
 import { useAuth } from "../context/AuthContext";
@@ -15,6 +15,7 @@ const navItems: Array<{ id: string; label: string; icon: typeof Home; requiredAc
   { id: "dashboard", label: "Панель управления", icon: Home },
   { id: "scenarios", label: "Сценарии", icon: FileText, requiredAction: "MANAGE_SCENARIOS" },
   { id: "tests", label: "Тесты", icon: Play, requiredAction: "MANAGE_TEST_RUNS" },
+  { id: "schedules", label: "Расписание", icon: CalendarClock, requiredAction: "MANAGE_SCHEDULES" },
   { id: "agents", label: "Агенты", icon: Server, requiredAction: "MANAGE_AGENTS" },
   { id: "reports",  label: "Отчеты",              icon: BarChart3, requiredAction: "VIEW_METRICS" },
   { id: "history",  label: "История изменений",   icon: History,   requiredAction: "VIEW_AUDIT_LOG" },
