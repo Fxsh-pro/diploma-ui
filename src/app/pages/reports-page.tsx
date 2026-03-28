@@ -181,11 +181,11 @@ function ComparisonCharts({ currentRun, baselineRun }: {
   ] as const;
 
   return (
-    <div className="space-y-4">
+    <div className="grid lg:grid-cols-3 gap-6">
       {charts.map(({ title, lines, unit }) => (
         <div key={title}>
-          <p className="text-xs font-semibold text-muted-foreground mb-1">{title}</p>
-          <ResponsiveContainer width="100%" height={160}>
+          <p className="text-sm font-semibold text-muted-foreground mb-2">{title}</p>
+          <ResponsiveContainer width="100%" height={220}>
             <LineChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fontSize: 10 }} />
@@ -516,6 +516,9 @@ export function ReportsPage({ onStartTest }: ReportsPageProps) {
                         ))}
                     </SelectContent>
                   </Select>
+                  {baselineRunId !== 'none' && (
+                    <p className="text-xs text-muted-foreground mt-1.5">Результаты сравнения — ниже</p>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-2 pt-3 border-t border-border">
@@ -541,27 +544,6 @@ export function ReportsPage({ onStartTest }: ReportsPageProps) {
             </Card>
           )}
 
-          {/* Comparison card */}
-          {(compLoading || comparison) && selectedRun && (() => {
-            const baselineRun = runs.find((r) => r.id === baselineRunId);
-            return (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Сравнение</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {compLoading && <p className="text-xs text-muted-foreground">Загрузка…</p>}
-                  {!compLoading && comparison && baselineRun && (
-                    <ComparisonCharts currentRun={selectedRun} baselineRun={baselineRun} />
-                  )}
-                  {!compLoading && comparison && (
-                    <ComparisonTable cmp={comparison} />
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })()}
-
           {!reportLoading && !report && selectedRunId && (
             <Card>
               <CardContent className="p-8 text-center text-muted-foreground">
@@ -571,6 +553,36 @@ export function ReportsPage({ onStartTest }: ReportsPageProps) {
           )}
         </div>
       </div>
+
+      {/* ── Full-width comparison section ─────────────────────────────────────── */}
+      {(compLoading || comparison) && selectedRun && (() => {
+        const baselineRun = runs.find((r) => r.id === baselineRunId);
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                Сравнение запусков
+                <span className="text-xs font-normal text-muted-foreground">
+                  baseline <span className="font-mono">{baselineRunId.slice(0, 8)}…</span>
+                  {' → '}
+                  current <span className="font-mono">{selectedRunId?.slice(0, 8)}…</span>
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {compLoading && <p className="text-sm text-muted-foreground py-4 text-center">Загрузка данных сравнения…</p>}
+              {!compLoading && comparison && baselineRun && (
+                <div className="space-y-6">
+                  {/* Charts in a 3-column grid */}
+                  <ComparisonCharts currentRun={selectedRun} baselineRun={baselineRun} />
+                  {/* Summary table */}
+                  <ComparisonTable cmp={comparison} />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }

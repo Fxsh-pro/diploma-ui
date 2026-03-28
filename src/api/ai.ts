@@ -5,6 +5,7 @@ const AI_BASE_URL = (import.meta as any).env?.VITE_AI_BASE_URL ?? 'http://localh
 interface GenerateRequest {
   prompt: string;
   currentGraph?: ScenarioGraphDto | null;
+  swaggerUrl?: string | null;
 }
 
 interface GenerateResponse {

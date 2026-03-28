@@ -6,6 +6,7 @@ import type {
   MetricPointResponse,
   ReportResponse,
   RunComparisonResponse,
+  RunErrorResponse,
 } from './types';
 
 async function downloadFile(path: string, filename: string): Promise<void> {
@@ -46,4 +47,7 @@ export const runsApi = {
 
   compare: (id: string, baselineId: string) =>
     http.get<RunComparisonResponse>(`/api/runs/${id}/compare?baselineId=${baselineId}`),
+
+  errors: (id: string) =>
+    http.get<RunErrorResponse[]>(`/api/runs/${id}/errors`),
 };

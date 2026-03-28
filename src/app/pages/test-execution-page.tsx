@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { runsApi } from "../../api/runs";
 import { scenariosApi } from "../../api/scenarios";
-import type { TestRunResponse, MetricPointResponse } from "../../api/types";
+import type { TestRunResponse, MetricPointResponse, RunErrorResponse } from "../../api/types";
 
 interface ChartPoint {
   time: string;
@@ -43,6 +43,7 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
   const [run, setRun] = useState<TestRunResponse | null>(null);
   const [scenarioName, setScenarioName] = useState<string>('');
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
+  const [errors, setErrors] = useState<RunErrorResponse[]>([]);
   const [activeTab, setActiveTab] = useState("metrics");
   const startRef = useRef<string | null>(null);
 
@@ -82,6 +83,8 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
           scenariosApi.get(r.scenarioId).then((s) => setScenarioName(s.name)).catch(() => {});
         }
         await fetchMetrics(r);
+        const errs = await runsApi.errors(runId);
+        setErrors(errs);
       } catch {
         // silently ignore
       }
@@ -339,6 +342,13 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="metrics">Все метрики</TabsTrigger>
+            <TabsTrigger value="errors">
+              Ошибки{errors.length > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 rounded text-xs bg-destructive/20 text-destructive font-medium">
+                  {errors.length}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="run">Информация о запуске</TabsTrigger>
           </TabsList>
 
@@ -374,6 +384,38 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
                         <tr>
                           <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                             Нет данных
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="errors" className="mt-4">
+            <Card>
+              <CardContent className="p-0">
+                <div className="max-h-96 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50">
+                        <th className="text-left px-4 py-2 font-medium">Ошибка</th>
+                        <th className="text-right px-4 py-2 font-medium">Кол-во</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {errors.map((e, i) => (
+                        <tr key={i} className="border-b border-border/50 hover:bg-muted/30">
+                          <td className="px-4 py-2 font-mono text-xs text-destructive">{e.message}</td>
+                          <td className="px-4 py-2 font-mono text-right">{e.count}</td>
+                        </tr>
+                      ))}
+                      {errors.length === 0 && (
+                        <tr>
+                          <td colSpan={2} className="px-4 py-8 text-center text-muted-foreground">
+                            Ошибок не зафиксировано
                           </td>
                         </tr>
                       )}

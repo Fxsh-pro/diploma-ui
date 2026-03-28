@@ -133,6 +133,18 @@ export interface ScenarioGraphDto {
   edges: ScenarioEdgeDto[];
 }
 
+export interface SwaggerSpecResponse {
+  id: string;
+  name: string;
+  url: string;
+  createdAt: string;
+}
+
+export interface CreateSwaggerSpecRequest {
+  name: string;
+  url: string;
+}
+
 export interface ScenarioResponse {
   id: string;
   name: string;
@@ -140,18 +152,21 @@ export interface ScenarioResponse {
   graph: ScenarioGraphDto;
   createdAt: string;
   updatedAt: string;
+  swaggerSpecId?: string | null;
 }
 
 export interface CreateScenarioRequest {
   name: string;
   description?: string;
   graph: ScenarioGraphDto;
+  swaggerSpecId?: string | null;
 }
 
 export interface UpdateScenarioRequest {
   name: string;
   description?: string;
   graph: ScenarioGraphDto;
+  swaggerSpecId?: string | null;
 }
 
 // ─── Test Runs ────────────────────────────────────────────────────────────────
@@ -168,6 +183,7 @@ export interface TestRunResponse {
   createdAt: string;
   failureReason?: string | null;
   parentRunId?: string | null;
+  baseUrl?: string | null;
 }
 
 export interface PassFailCriteriaDto {
@@ -182,6 +198,14 @@ export interface CreateTestRunRequest {
   totalVus: number;
   criteria?: PassFailCriteriaDto | null;
   poolId?: string | null;
+  baseUrl?: string | null;
+}
+
+// ─── Errors ───────────────────────────────────────────────────────────────────
+
+export interface RunErrorResponse {
+  message: string;
+  count: number;
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────

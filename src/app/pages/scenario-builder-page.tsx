@@ -18,7 +18,8 @@ import { PropertiesPanel } from '../components/scenario-builder/properties-panel
 import { EdgePropertiesPanel } from '../components/scenario-builder/edge-properties-panel';
 import type { ScenarioNode, NodeConnection } from '../components/scenario-builder/node-types';
 import { scenariosApi } from '../../api/scenarios';
-import type { ScenarioNodeDto, ScenarioEdgeDto, ScenarioGraphDto } from '../../api/types';
+import { swaggerSpecsApi } from '../../api/swagger-specs';
+import type { ScenarioNodeDto, ScenarioEdgeDto, ScenarioGraphDto, SwaggerSpecResponse } from '../../api/types';
 import { applyDagreLayout } from '../components/scenario-builder/layout';
 
 interface ScenarioBuilderPageProps {
@@ -255,11 +256,44 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ text: string; error: boolean } | null>(null);
   const [leftTab, setLeftTab] = useState<'toolbox' | 'ai'>('toolbox');
+  const [leftWidth, setLeftWidth] = useState(256);
+  const [swaggerSpecs, setSwaggerSpecs] = useState<SwaggerSpecResponse[]>([]);
+  const [swaggerSpecId, setSwaggerSpecId] = useState<string | null>(null);
+  const draggingLeft = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartWidth = useRef(0);
+
+  const handleLeftResizeMouseDown = (e: React.MouseEvent) => {
+    draggingLeft.current = true;
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = leftWidth;
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!draggingLeft.current) return;
+      const delta = e.clientX - dragStartX.current;
+      setLeftWidth(Math.max(200, Math.min(700, dragStartWidth.current + delta)));
+    };
+    const onMouseUp = () => { draggingLeft.current = false; };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    swaggerSpecsApi.list().then(setSwaggerSpecs).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!scenarioId) return;
     scenariosApi.get(scenarioId).then((scenario) => {
       setScenarioName(scenario.name);
+      setSwaggerSpecId(scenario.swaggerSpecId ?? null);
       const { nodes: n, edges: e } = graphToCanvas(scenario.graph);
       setNodes(n);
       setEdges(e);
@@ -360,9 +394,9 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
     try {
       const graph = canvasToGraph(nodes, edges);
       if (scenarioId) {
-        await scenariosApi.update(scenarioId, { name: scenarioName, graph });
+        await scenariosApi.update(scenarioId, { name: scenarioName, graph, swaggerSpecId });
       } else {
-        await scenariosApi.create({ name: scenarioName, graph });
+        await scenariosApi.create({ name: scenarioName, graph, swaggerSpecId });
       }
       setSaveMsg({ text: 'Сохранено', error: false });
       setTimeout(() => setSaveMsg(null), 2000);
@@ -462,7 +496,7 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
       {/* Main Content */}
       <div className="flex h-[calc(100vh-4rem)]">
         {/* Left Sidebar */}
-        <div className="w-64 border-r border-border flex flex-col">
+        <div className="border-r border-border flex flex-col relative flex-shrink-0" style={{ width: leftWidth }}>
           {/* Tab switcher */}
           <div className="flex border-b border-border">
             <button
@@ -496,9 +530,18 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
               <AiPanel
                 currentGraph={nodes.length > 0 ? canvasToGraph(nodes, edges) : null}
                 onGraphGenerated={handleGraphGenerated}
+                swaggerSpecs={swaggerSpecs}
+                selectedSpecId={swaggerSpecId}
+                onSpecChange={setSwaggerSpecId}
               />
             )}
           </div>
+
+          {/* Resize handle */}
+          <div
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 active:bg-primary z-10 transition-colors"
+            onMouseDown={handleLeftResizeMouseDown}
+          />
         </div>
 
         {/* Center - Canvas */}

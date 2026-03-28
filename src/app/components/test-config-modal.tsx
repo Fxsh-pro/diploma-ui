@@ -18,7 +18,7 @@ import {
 } from "./ui/select";
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { Play } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import { LoadProfilePreview } from "./load-profile-preview";
 import { scenariosApi } from "../../api/scenarios";
 import { runsApi } from "../../api/runs";
 import { poolsApi } from "../../api/pools";
@@ -68,6 +68,7 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
   const [maxErrorRate, setMaxErrorRate] = useState<string>('');
   const [maxLatencyP99, setMaxLatencyP99] = useState<string>('');
 
+  const [baseUrl, setBaseUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,45 +82,6 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
     }
   }, [open]);
 
-  // Build preview data for chart
-  const previewData = (() => {
-    const pts: { time: number; vu: number }[] = [];
-    if (loadProfile === 'ramp-up') {
-      const totalSec = rampUpSec + holdSec + rampDownSec;
-      const step = Math.max(1, Math.floor(totalSec / 30));
-      for (let t = 0; t <= totalSec; t += step) {
-        let vu: number;
-        if (t <= rampUpSec) vu = startVus + ((peakVus - startVus) / rampUpSec) * t;
-        else if (t <= rampUpSec + holdSec) vu = peakVus;
-        else vu = peakVus - ((peakVus - startVus) / rampDownSec) * (t - rampUpSec - holdSec);
-        pts.push({ time: Math.round(t / 60), vu: Math.max(0, Math.round(vu)) });
-      }
-    } else if (loadProfile === 'constant') {
-      const totalMin = Math.ceil((holdSec) / 60);
-      pts.push({ time: 0, vu: 0 });
-      pts.push({ time: 1, vu: peakVus });
-      pts.push({ time: totalMin, vu: peakVus });
-    } else if (loadProfile === 'spike') {
-      const cycleMin = Math.ceil((spikeSec + recoverySec) / 60);
-      pts.push({ time: 0, vu: baselineVus });
-      for (let i = 0; i < spikeCount; i++) {
-        const base = i * cycleMin;
-        pts.push({ time: base + 0.1, vu: peakVus });
-        pts.push({ time: base + Math.ceil(spikeSec / 60), vu: peakVus });
-        pts.push({ time: base + cycleMin, vu: baselineVus });
-      }
-    } else if (loadProfile === 'step') {
-      let t = 0;
-      let vu = startVus;
-      pts.push({ time: 0, vu });
-      for (let i = 0; i < steps; i++) {
-        vu += stepSize;
-        t += Math.ceil(stepDurSec / 60);
-        pts.push({ time: t, vu });
-      }
-    }
-    return pts;
-  })();
 
   const derivedTotalVus = (): number => {
     switch (loadProfile) {
@@ -179,6 +141,7 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
         totalVus: derivedTotalVus(),
         criteria: buildCriteria(),
         poolId: poolId === 'none' ? null : poolId,
+        baseUrl: baseUrl.trim() || null,
       });
       onStartTest(run.id);
       onClose();
@@ -191,13 +154,13 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-none w-[min(90vw,1100px)] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Настройка нагрузочного теста</DialogTitle>
           <DialogDescription>Выберите сценарий и настройте профиль нагрузки</DialogDescription>
         </DialogHeader>
 
-        <div className="grid md:grid-cols-2 gap-6 mt-4">
+        <div className="grid md:grid-cols-[380px_1fr] gap-6 mt-4">
           {/* Left – Configuration */}
           <div className="space-y-6">
             <div className="space-y-2">
@@ -212,6 +175,16 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Base URL</Label>
+              <Input
+                placeholder="https://api.example.com"
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Домен, который будет подставляться перед относительными путями в HTTP-узлах</p>
             </div>
 
             <div className="space-y-2">
@@ -389,25 +362,22 @@ export function TestConfigModal({ open, onClose, onStartTest }: TestConfigModalP
           </div>
 
           {/* Right – Preview */}
-          <div className="space-y-4">
-            <h4 className="text-sm font-semibold">Предпросмотр профиля нагрузки</h4>
-            <div className="h-64 rounded-lg border border-border bg-muted/20 p-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={previewData}>
-                  <defs>
-                    <linearGradient id="colorVU" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                  <XAxis dataKey="time" stroke="var(--color-muted-foreground)" fontSize={12} label={{ value: 'мин', position: 'insideBottom', offset: -5 }} />
-                  <YAxis stroke="var(--color-muted-foreground)" fontSize={12} />
-                  <Area type={loadProfile === 'step' ? 'stepAfter' : 'monotone'} dataKey="vu" stroke="var(--color-primary)" strokeWidth={2} fillOpacity={1} fill="url(#colorVU)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
+          <LoadProfilePreview
+            loadProfile={loadProfile}
+            startVus={startVus}
+            peakVus={peakVus}
+            rampUpSec={rampUpSec}
+            holdSec={holdSec}
+            rampDownSec={rampDownSec}
+            baselineVus={baselineVus}
+            spikeSec={spikeSec}
+            recoverySec={recoverySec}
+            spikeCount={spikeCount}
+            stepSize={stepSize}
+            steps={steps}
+            stepDurSec={stepDurSec}
+            totalVus={derivedTotalVus()}
+          />
         </div>
 
         {error && <p className="text-sm text-destructive mt-2">{error}</p>}

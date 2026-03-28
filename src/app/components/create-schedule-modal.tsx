@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 import { CalendarClock } from "lucide-react";
 import { CronPicker } from "./cron-picker";
+import { LoadProfilePreview } from "./load-profile-preview";
 import { scenariosApi } from "../../api/scenarios";
 import { poolsApi } from "../../api/pools";
 import { schedulesApi } from "../../api/schedules";
@@ -130,143 +131,164 @@ export function CreateScheduleModal({ open, onClose, onCreated }: CreateSchedule
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-none w-[min(90vw,1100px)] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Новое расписание</DialogTitle>
           <DialogDescription>Настройте автоматический запуск теста</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 mt-4">
-          {/* Name */}
-          <div className="space-y-2">
-            <Label>Название расписания</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например: Ежедневная проверка API" />
-          </div>
-
-          {/* Schedule type */}
-          <div className="space-y-3">
-            <Label>Тип расписания</Label>
-            <RadioGroup value={scheduleType} onValueChange={(v) => setScheduleType(v as 'ONE_TIME' | 'RECURRING')} className="flex gap-6">
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="ONE_TIME" id="one-time" />
-                <Label htmlFor="one-time" className="font-normal cursor-pointer">Однократно</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="RECURRING" id="recurring" />
-                <Label htmlFor="recurring" className="font-normal cursor-pointer">Повторяющееся (Cron)</Label>
-              </div>
-            </RadioGroup>
-
-            {scheduleType === 'ONE_TIME' && (
-              <div className="space-y-2">
-                <Label>Дата и время запуска</Label>
-                <Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
-              </div>
-            )}
-
-            {scheduleType === 'RECURRING' && (
-              <CronPicker value={cronExpression} onChange={setCronExpression} />
-            )}
-          </div>
-
-          <div className="border-t border-border pt-4 space-y-5">
-            {/* Scenario */}
+        <div className="grid md:grid-cols-[420px_1fr] gap-6 mt-4">
+          {/* Left – Configuration */}
+          <div className="space-y-5">
+            {/* Name */}
             <div className="space-y-2">
-              <Label>Сценарий</Label>
-              <Select value={scenarioId} onValueChange={setScenarioId}>
-                <SelectTrigger><SelectValue placeholder="Выберите сценарий" /></SelectTrigger>
-                <SelectContent>
-                  {scenarios.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Label>Название расписания</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например: Ежедневная проверка API" />
             </div>
 
-            {/* Pool */}
-            <div className="space-y-2">
-              <Label>Пул агентов</Label>
-              <Select value={poolId} onValueChange={setPoolId}>
-                <SelectTrigger><SelectValue placeholder="Все доступные агенты" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— все доступные агенты —</SelectItem>
-                  {pools.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Load profile */}
+            {/* Schedule type */}
             <div className="space-y-3">
-              <Label>Профиль нагрузки</Label>
-              <RadioGroup value={loadProfile} onValueChange={(v) => setLoadProfile(v as UiProfile)}>
-                {(['constant', 'ramp-up', 'spike', 'step'] as UiProfile[]).map((p) => (
-                  <div key={p} className="flex items-center space-x-2">
-                    <RadioGroupItem value={p} id={`sched-${p}`} />
-                    <Label htmlFor={`sched-${p}`} className="font-normal cursor-pointer">
-                      {p === 'ramp-up' ? 'Ramp-Up' : p === 'step' ? 'Step' : p === 'spike' ? 'Spike' : 'Constant'}
-                    </Label>
-                  </div>
-                ))}
+              <Label>Тип расписания</Label>
+              <RadioGroup value={scheduleType} onValueChange={(v) => setScheduleType(v as 'ONE_TIME' | 'RECURRING')} className="flex gap-6">
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="ONE_TIME" id="one-time" />
+                  <Label htmlFor="one-time" className="font-normal cursor-pointer">Однократно</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="RECURRING" id="recurring" />
+                  <Label htmlFor="recurring" className="font-normal cursor-pointer">Повторяющееся (Cron)</Label>
+                </div>
               </RadioGroup>
 
-              {loadProfile === 'ramp-up' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1"><Label>Нач. VU</Label><Input type="number" value={startVus} onChange={(e) => setStartVus(Number(e.target.value))} min={0} /></div>
-                  <div className="space-y-1"><Label>Пик VU</Label><Input type="number" value={peakVus} onChange={(e) => setPeakVus(Number(e.target.value))} min={1} /></div>
-                  <div className="space-y-1"><Label>Разгон (с)</Label><Input type="number" value={rampUpSec} onChange={(e) => setRampUpSec(Number(e.target.value))} min={0} /></div>
-                  <div className="space-y-1"><Label>Удержание (с)</Label><Input type="number" value={holdSec} onChange={(e) => setHoldSec(Number(e.target.value))} min={0} /></div>
-                  <div className="space-y-1"><Label>Спад (с)</Label><Input type="number" value={rampDownSec} onChange={(e) => setRampDownSec(Number(e.target.value))} min={0} /></div>
+              {scheduleType === 'ONE_TIME' && (
+                <div className="space-y-2">
+                  <Label>Дата и время запуска</Label>
+                  <Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
                 </div>
               )}
-              {loadProfile === 'constant' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1"><Label>Целевые VU</Label><Input type="number" value={peakVus} onChange={(e) => setPeakVus(Number(e.target.value))} min={1} /></div>
-                  <div className="space-y-1"><Label>Длительность (с)</Label><Input type="number" value={holdSec} onChange={(e) => setHoldSec(Number(e.target.value))} min={1} /></div>
-                </div>
-              )}
-              {loadProfile === 'spike' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1"><Label>Базовые VU</Label><Input type="number" value={baselineVus} onChange={(e) => setBaselineVus(Number(e.target.value))} min={0} /></div>
-                  <div className="space-y-1"><Label>Пик VU</Label><Input type="number" value={peakVus} onChange={(e) => setPeakVus(Number(e.target.value))} min={1} /></div>
-                  <div className="space-y-1"><Label>Пик (с)</Label><Input type="number" value={spikeSec} onChange={(e) => setSpikeSec(Number(e.target.value))} min={1} /></div>
-                  <div className="space-y-1"><Label>Восст. (с)</Label><Input type="number" value={recoverySec} onChange={(e) => setRecoverySec(Number(e.target.value))} min={1} /></div>
-                  <div className="space-y-1"><Label>Кол-во пиков</Label><Input type="number" value={spikeCount} onChange={(e) => setSpikeCount(Number(e.target.value))} min={1} /></div>
-                </div>
-              )}
-              {loadProfile === 'step' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1"><Label>Нач. VU</Label><Input type="number" value={startVus} onChange={(e) => setStartVus(Number(e.target.value))} min={0} /></div>
-                  <div className="space-y-1"><Label>Шаг VU</Label><Input type="number" value={stepSize} onChange={(e) => setStepSize(Number(e.target.value))} min={1} /></div>
-                  <div className="space-y-1"><Label>Шагов</Label><Input type="number" value={steps} onChange={(e) => setSteps(Number(e.target.value))} min={1} /></div>
-                  <div className="space-y-1"><Label>Длит. шага (с)</Label><Input type="number" value={stepDurSec} onChange={(e) => setStepDurSec(Number(e.target.value))} min={1} /></div>
-                </div>
+
+              {scheduleType === 'RECURRING' && (
+                <CronPicker value={cronExpression} onChange={setCronExpression} />
               )}
             </div>
 
-            {/* Criteria */}
-            <div className="space-y-3 pt-2 border-t border-border">
-              <div className="flex items-center justify-between">
-                <Label className="font-semibold">Критерии прохождения</Label>
-                <button
-                  type="button"
-                  onClick={() => setCriteriaEnabled((v) => !v)}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${criteriaEnabled ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-                >
-                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${criteriaEnabled ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-                </button>
+            <div className="border-t border-border pt-4 space-y-5">
+              {/* Scenario */}
+              <div className="space-y-2">
+                <Label>Сценарий</Label>
+                <Select value={scenarioId} onValueChange={setScenarioId}>
+                  <SelectTrigger><SelectValue placeholder="Выберите сценарий" /></SelectTrigger>
+                  <SelectContent>
+                    {scenarios.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
-              {criteriaEnabled && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label>Макс. ошибок (%)</Label>
-                    <Input type="number" min={0} max={100} step={0.1} placeholder="напр. 5" value={maxErrorRate} onChange={(e) => setMaxErrorRate(e.target.value)} />
+
+              {/* Pool */}
+              <div className="space-y-2">
+                <Label>Пул агентов</Label>
+                <Select value={poolId} onValueChange={setPoolId}>
+                  <SelectTrigger><SelectValue placeholder="Все доступные агенты" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— все доступные агенты —</SelectItem>
+                    {pools.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Load profile */}
+              <div className="space-y-3">
+                <Label>Профиль нагрузки</Label>
+                <RadioGroup value={loadProfile} onValueChange={(v) => setLoadProfile(v as UiProfile)}>
+                  {(['constant', 'ramp-up', 'spike', 'step'] as UiProfile[]).map((p) => (
+                    <div key={p} className="flex items-center space-x-2">
+                      <RadioGroupItem value={p} id={`sched-${p}`} />
+                      <Label htmlFor={`sched-${p}`} className="font-normal cursor-pointer">
+                        {p === 'ramp-up' ? 'Ramp-Up' : p === 'step' ? 'Step' : p === 'spike' ? 'Spike' : 'Constant'}
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+
+                {loadProfile === 'ramp-up' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1"><Label>Нач. VU</Label><Input type="number" value={startVus} onChange={(e) => setStartVus(Number(e.target.value))} min={0} /></div>
+                    <div className="space-y-1"><Label>Пик VU</Label><Input type="number" value={peakVus} onChange={(e) => setPeakVus(Number(e.target.value))} min={1} /></div>
+                    <div className="space-y-1"><Label>Разгон (с)</Label><Input type="number" value={rampUpSec} onChange={(e) => setRampUpSec(Number(e.target.value))} min={0} /></div>
+                    <div className="space-y-1"><Label>Удержание (с)</Label><Input type="number" value={holdSec} onChange={(e) => setHoldSec(Number(e.target.value))} min={0} /></div>
+                    <div className="space-y-1"><Label>Спад (с)</Label><Input type="number" value={rampDownSec} onChange={(e) => setRampDownSec(Number(e.target.value))} min={0} /></div>
                   </div>
-                  <div className="space-y-1">
-                    <Label>Макс. P99 (мс)</Label>
-                    <Input type="number" min={1} placeholder="напр. 2000" value={maxLatencyP99} onChange={(e) => setMaxLatencyP99(e.target.value)} />
+                )}
+                {loadProfile === 'constant' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1"><Label>Целевые VU</Label><Input type="number" value={peakVus} onChange={(e) => setPeakVus(Number(e.target.value))} min={1} /></div>
+                    <div className="space-y-1"><Label>Длительность (с)</Label><Input type="number" value={holdSec} onChange={(e) => setHoldSec(Number(e.target.value))} min={1} /></div>
                   </div>
+                )}
+                {loadProfile === 'spike' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1"><Label>Базовые VU</Label><Input type="number" value={baselineVus} onChange={(e) => setBaselineVus(Number(e.target.value))} min={0} /></div>
+                    <div className="space-y-1"><Label>Пик VU</Label><Input type="number" value={peakVus} onChange={(e) => setPeakVus(Number(e.target.value))} min={1} /></div>
+                    <div className="space-y-1"><Label>Пик (с)</Label><Input type="number" value={spikeSec} onChange={(e) => setSpikeSec(Number(e.target.value))} min={1} /></div>
+                    <div className="space-y-1"><Label>Восст. (с)</Label><Input type="number" value={recoverySec} onChange={(e) => setRecoverySec(Number(e.target.value))} min={1} /></div>
+                    <div className="space-y-1"><Label>Кол-во пиков</Label><Input type="number" value={spikeCount} onChange={(e) => setSpikeCount(Number(e.target.value))} min={1} /></div>
+                  </div>
+                )}
+                {loadProfile === 'step' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1"><Label>Нач. VU</Label><Input type="number" value={startVus} onChange={(e) => setStartVus(Number(e.target.value))} min={0} /></div>
+                    <div className="space-y-1"><Label>Шаг VU</Label><Input type="number" value={stepSize} onChange={(e) => setStepSize(Number(e.target.value))} min={1} /></div>
+                    <div className="space-y-1"><Label>Шагов</Label><Input type="number" value={steps} onChange={(e) => setSteps(Number(e.target.value))} min={1} /></div>
+                    <div className="space-y-1"><Label>Длит. шага (с)</Label><Input type="number" value={stepDurSec} onChange={(e) => setStepDurSec(Number(e.target.value))} min={1} /></div>
+                  </div>
+                )}
+              </div>
+
+              {/* Criteria */}
+              <div className="space-y-3 pt-2 border-t border-border">
+                <div className="flex items-center justify-between">
+                  <Label className="font-semibold">Критерии прохождения</Label>
+                  <button
+                    type="button"
+                    onClick={() => setCriteriaEnabled((v) => !v)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${criteriaEnabled ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${criteriaEnabled ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
+                  </button>
                 </div>
-              )}
+                {criteriaEnabled && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Макс. ошибок (%)</Label>
+                      <Input type="number" min={0} max={100} step={0.1} placeholder="напр. 5" value={maxErrorRate} onChange={(e) => setMaxErrorRate(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Макс. P99 (мс)</Label>
+                      <Input type="number" min={1} placeholder="напр. 2000" value={maxLatencyP99} onChange={(e) => setMaxLatencyP99(e.target.value)} />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+
+          {/* Right – Preview chart */}
+          <LoadProfilePreview
+            loadProfile={loadProfile}
+            startVus={startVus}
+            peakVus={peakVus}
+            rampUpSec={rampUpSec}
+            holdSec={holdSec}
+            rampDownSec={rampDownSec}
+            baselineVus={baselineVus}
+            spikeSec={spikeSec}
+            recoverySec={recoverySec}
+            spikeCount={spikeCount}
+            stepSize={stepSize}
+            steps={steps}
+            stepDurSec={stepDurSec}
+            totalVus={derivedTotalVus()}
+          />
         </div>
 
         {error && <p className="text-sm text-destructive mt-2">{error}</p>}
