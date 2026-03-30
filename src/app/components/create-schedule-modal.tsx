@@ -57,6 +57,7 @@ export function CreateScheduleModal({ open, onClose, onCreated }: CreateSchedule
   const [criteriaEnabled, setCriteriaEnabled] = useState(false);
   const [maxErrorRate, setMaxErrorRate] = useState('');
   const [maxLatencyP99, setMaxLatencyP99] = useState('');
+  const [baseUrl, setBaseUrl] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +118,7 @@ export function CreateScheduleModal({ open, onClose, onCreated }: CreateSchedule
         totalVus: derivedTotalVus(),
         criteria: buildCriteria(),
         poolId: poolId === 'none' ? null : poolId,
+        baseUrl: baseUrl.trim() || null,
       });
       onCreated();
       onClose();
@@ -194,6 +196,17 @@ export function CreateScheduleModal({ open, onClose, onCreated }: CreateSchedule
                     {pools.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Base URL */}
+              <div className="space-y-2">
+                <Label>Base URL</Label>
+                <Input
+                  placeholder="https://api.example.com"
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Домен, который будет подставляться перед относительными путями в HTTP-узлах</p>
               </div>
 
               {/* Load profile */}

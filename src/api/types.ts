@@ -258,6 +258,7 @@ export interface ScheduleResponse {
   nextRunAt: string | null;
   createdAt: string;
   poolId: string | null;
+  baseUrl?: string | null;
 }
 
 export interface CreateScheduleRequest {
@@ -271,6 +272,7 @@ export interface CreateScheduleRequest {
   totalVus: number;
   criteria?: PassFailCriteriaDto | null;
   poolId?: string | null;
+  baseUrl?: string | null;
 }
 
 // ─── History / Audit Log ──────────────────────────────────────────────────────

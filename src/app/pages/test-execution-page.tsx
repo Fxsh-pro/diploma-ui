@@ -437,6 +437,7 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
                     <div className="flex justify-between"><span className="text-muted-foreground">Создан:</span><span className="font-mono text-xs">{new Date(run.createdAt).toLocaleString()}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Начало:</span><span className="font-mono text-xs">{run.startedAt ? new Date(run.startedAt).toLocaleString() : '—'}</span></div>
                     <div className="flex justify-between"><span className="text-muted-foreground">Конец:</span><span className="font-mono text-xs">{run.finishedAt ? new Date(run.finishedAt).toLocaleString() : '—'}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Base URL:</span><span className="font-mono text-xs">{run.baseUrl || '—'}</span></div>
                     {run.failureReason && (
                       <div className="pt-2 border-t border-border">
                         <span className="text-destructive text-xs font-medium">Причина сбоя:</span>
