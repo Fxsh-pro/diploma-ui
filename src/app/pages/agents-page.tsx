@@ -409,9 +409,9 @@ export function AgentsPage() {
                           <span className="text-muted-foreground">Хост:</span>
                           <span className="font-mono text-xs">{agent.hostname}</span>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">URL:</span>
-                          <Badge variant="secondary" className="font-mono text-xs max-w-[150px] truncate">{agent.url}</Badge>
+                        <div className="flex justify-between items-start gap-2">
+                          <span className="text-muted-foreground shrink-0">URL:</span>
+                          <Badge variant="secondary" className="font-mono text-xs text-right break-all">{agent.url}</Badge>
                         </div>
                         {agent.currentVus > 0 && (
                           <div className="flex justify-between">
