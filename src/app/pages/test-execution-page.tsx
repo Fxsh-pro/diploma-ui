@@ -99,7 +99,11 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
 
   const elapsed = (() => {
     if (!run?.startedAt) return '—';
-    const secs = Math.floor((Date.now() - new Date(run.startedAt).getTime()) / 1000);
+    const start = new Date(run.startedAt).getTime();
+    const end = isTerminal && run.finishedAt
+      ? new Date(run.finishedAt).getTime()
+      : Date.now();
+    const secs = Math.floor((end - start) / 1000);
     const m = Math.floor(secs / 60);
     const s = secs % 60;
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
