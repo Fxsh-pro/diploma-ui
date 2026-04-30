@@ -185,6 +185,13 @@ export function AgentsPage() {
     } catch { /* ignore */ }
   };
 
+  const handleDeleteAgent = async (agentId: string) => {
+    try {
+      await agentsApi.delete(agentId);
+      loadAgents();
+    } catch { /* ignore */ }
+  };
+
   const handleAssignPool = async (agentId: string, poolId: string | null) => {
     try {
       await poolsApi.assignAgent(agentId, poolId);
@@ -366,6 +373,17 @@ export function AgentsPage() {
                             <span className={cn("text-xs font-medium", config.color)}>{config.label}</span>
                           </div>
                         </div>
+                        {agent.status === 'OFFLINE' && canDo('MANAGE_AGENTS') && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0"
+                            onClick={() => handleDeleteAgent(agent.id)}
+                            title="Удалить агента"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
