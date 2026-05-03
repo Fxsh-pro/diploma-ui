@@ -346,7 +346,7 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
 
         {/* Summary stats for completed runs */}
         {isTerminal && report && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4">
             {[
               { label: 'Всего запросов', value: report.totalRequests.toLocaleString('ru-RU') },
               { label: 'Ср. RPS', value: report.avgRps.toFixed(1) },
@@ -354,6 +354,7 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
               { label: 'P50', value: `${report.latencyP50.toFixed(0)} мс` },
               { label: 'P90', value: `${report.latencyP90.toFixed(0)} мс` },
               { label: 'P99', value: `${report.latencyP99.toFixed(0)} мс` },
+              { label: 'Ошибки', value: `${(report.errorRate * 100).toFixed(2)}%` },
             ].map(({ label, value }) => (
               <Card key={label}>
                 <CardContent className="pt-4 pb-3">
