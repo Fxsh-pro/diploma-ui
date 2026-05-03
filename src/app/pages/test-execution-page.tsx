@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { runsApi } from "../../api/runs";
 import { scenariosApi } from "../../api/scenarios";
-import type { TestRunResponse, MetricPointResponse, RunErrorResponse } from "../../api/types";
+import type { TestRunResponse, MetricPointResponse, RunErrorResponse, ReportResponse } from "../../api/types";
 
 interface ChartPoint {
   time: string;
@@ -43,6 +43,7 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
   const [run, setRun] = useState<TestRunResponse | null>(null);
   const [scenarioName, setScenarioName] = useState<string>('');
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
+  const [report, setReport] = useState<ReportResponse | null>(null);
   const [errors, setErrors] = useState<RunErrorResponse[]>([]);
   const [activeTab, setActiveTab] = useState("metrics");
   const startRef = useRef<string | null>(null);
@@ -51,8 +52,9 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
     try {
       let points: MetricPointResponse[];
       if (TERMINAL.has(currentRun.status)) {
-        const report = await runsApi.report(runId);
-        points = report.timeSeries;
+        const reportData = await runsApi.report(runId);
+        setReport(reportData);
+        points = reportData.timeSeries;
       } else {
         const from = currentRun.startedAt ?? new Date(Date.now() - 3600_000).toISOString();
         const to = new Date().toISOString();
@@ -341,6 +343,27 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
             </CardContent>
           </Card>
         </div>
+
+        {/* Summary stats for completed runs */}
+        {isTerminal && report && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {[
+              { label: 'Всего запросов', value: report.totalRequests.toLocaleString() },
+              { label: 'Ср. RPS', value: report.avgRps.toFixed(1) },
+              { label: 'Пик. RPS', value: report.peakRps.toFixed(1) },
+              { label: 'P50', value: `${report.latencyP50.toFixed(0)} мс` },
+              { label: 'P90', value: `${report.latencyP90.toFixed(0)} мс` },
+              { label: 'P99', value: `${report.latencyP99.toFixed(0)} мс` },
+            ].map(({ label, value }) => (
+              <Card key={label}>
+                <CardContent className="pt-4 pb-3">
+                  <div className="text-xs text-muted-foreground">{label}</div>
+                  <div className="text-xl font-mono font-bold mt-0.5">{value}</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>

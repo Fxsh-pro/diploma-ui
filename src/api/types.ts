@@ -227,6 +227,7 @@ export interface ReportResponse {
   durationSeconds: number;
   totalRequests: number;
   avgRps: number;
+  peakRps: number;
   latencyP50: number;
   latencyP90: number;
   latencyP99: number;
