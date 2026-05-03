@@ -365,7 +365,7 @@ export function ScenarioBuilderPage({ scenarioId, onBack }: ScenarioBuilderPageP
 
   const handleGraphGenerated = useCallback((graph: ScenarioGraphDto) => {
     const { nodes: n, edges: e } = graphToCanvas(graph);
-    setNodes(n);
+    setNodes(applyDagreLayout(n, e));
     setEdges(e);
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
