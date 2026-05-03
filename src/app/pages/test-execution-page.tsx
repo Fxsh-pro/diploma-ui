@@ -348,7 +348,7 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
         {isTerminal && report && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
-              { label: 'Всего запросов', value: report.totalRequests.toLocaleString() },
+              { label: 'Всего запросов', value: report.totalRequests.toLocaleString('ru-RU') },
               { label: 'Ср. RPS', value: report.avgRps.toFixed(1) },
               { label: 'Пик. RPS', value: report.peakRps.toFixed(1) },
               { label: 'P50', value: `${report.latencyP50.toFixed(0)} мс` },
