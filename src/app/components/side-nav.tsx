@@ -81,18 +81,6 @@ export function SideNav({ activePage, onNavigate, isOpen = true, onClose }: Side
               })}
           </nav>
 
-          {/* Footer */}
-          <div className="border-t border-border p-4">
-            <div className="rounded-lg bg-muted p-3">
-              <p className="text-xs font-medium mb-1">Нужна помощь?</p>
-              <p className="text-xs text-muted-foreground mb-2">
-                Ознакомьтесь с документацией и руководствами.
-              </p>
-              <Button variant="outline" size="sm" className="w-full">
-                Документация
-              </Button>
-            </div>
-          </div>
         </div>
       </aside>
     </>
