@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, Square, Download, RotateCcw } from "lucide-react";
+import { ArrowLeft, Square, RotateCcw } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/button";
 import { StatusBadge } from "../components/status-badge";
@@ -58,7 +58,7 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
       } else {
         const from = currentRun.startedAt ?? new Date(Date.now() - 3600_000).toISOString();
         const to = new Date().toISOString();
-        points = await runsApi.metrics(runId, from, to, 30);
+        points = await runsApi.metrics(runId, from, to, 5);
       }
       const mapped: ChartPoint[] = points.map((p) => ({
         time: new Date(p.time).toLocaleTimeString(),
@@ -482,12 +482,6 @@ export function TestExecutionPage({ runId, onBack, onStartTest }: TestExecutionP
         </Tabs>
       </div>
 
-      <div className="fixed bottom-6 right-6">
-        <Button className="gap-2 shadow-lg">
-          <Download className="h-4 w-4" />
-          Экспорт данных
-        </Button>
-      </div>
     </div>
   );
 }
