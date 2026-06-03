@@ -21,7 +21,7 @@ export function ScenarioCanvasNode({ data, selected }: NodeProps) {
           selected && 'ring-2 ring-primary ring-offset-2',
         )}
       >
-        Start
+        Начало
         <Handle type="source" position={Position.Bottom} className={handleClass} />
       </div>
     );
@@ -35,7 +35,7 @@ export function ScenarioCanvasNode({ data, selected }: NodeProps) {
           selected && 'ring-2 ring-primary ring-offset-2',
         )}
       >
-        End
+        Конец
         <Handle type="target" position={Position.Top} className={handleClass} />
       </div>
     );
@@ -71,21 +71,21 @@ export function ScenarioCanvasNode({ data, selected }: NodeProps) {
         )}
         {nodeType === 'delay' && (
           <div className="font-mono text-foreground">
-            Think Time: {nodeData?.duration || '1000'}ms
+            Задержка: {nodeData?.duration || '1000'}мс
           </div>
         )}
         {nodeType === 'check' && (
           <div className="font-mono text-foreground">
             {nodeData?.checks?.length
-              ? `${nodeData.checks.length} check${nodeData.checks.length > 1 ? 's' : ''}`
-              : 'No checks'}
+              ? `${nodeData.checks.length} проверок`
+              : 'Нет проверок'}
           </div>
         )}
         {nodeType === 'generate' && (
           <div className="font-mono text-foreground">
             {nodeData?.rules?.length
-              ? `${nodeData.rules.length} variable${nodeData.rules.length > 1 ? 's' : ''}`
-              : 'No variables'}
+              ? `${nodeData.rules.length} переменных`
+              : 'Нет переменных'}
           </div>
         )}
       </div>

@@ -13,7 +13,7 @@ export const nodeTypes: NodeType[] = [
   {
     id: 'http',
     type: 'http',
-    label: 'HTTP Request',
+    label: 'HTTP-запрос',
     icon: Globe,
     category: 'request',
     color: 'bg-primary',
@@ -21,7 +21,7 @@ export const nodeTypes: NodeType[] = [
   {
     id: 'delay',
     type: 'delay',
-    label: 'Think Time',
+    label: 'Задержка',
     icon: Clock,
     category: 'control',
     color: 'bg-secondary',
@@ -29,7 +29,7 @@ export const nodeTypes: NodeType[] = [
   {
     id: 'check',
     type: 'check',
-    label: 'Validation',
+    label: 'Проверка',
     icon: CheckCircle,
     category: 'logic',
     color: 'bg-success',
@@ -37,7 +37,7 @@ export const nodeTypes: NodeType[] = [
   {
     id: 'generate',
     type: 'generate',
-    label: 'Generate Data',
+    label: 'Генерация данных',
     icon: Shuffle,
     category: 'logic',
     color: 'bg-warning',
@@ -45,7 +45,7 @@ export const nodeTypes: NodeType[] = [
   {
     id: 'start',
     type: 'start',
-    label: 'Start',
+    label: 'Начало',
     icon: Play,
     category: 'system',
     color: 'bg-success',
@@ -53,7 +53,7 @@ export const nodeTypes: NodeType[] = [
   {
     id: 'terminal',
     type: 'terminal',
-    label: 'End',
+    label: 'Конец',
     icon: Square,
     category: 'system',
     color: 'bg-destructive',

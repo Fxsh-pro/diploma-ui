@@ -87,8 +87,8 @@ function FlowInner({
         {nodes.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
             <div className="text-center text-muted-foreground">
-              <p className="text-lg font-medium mb-2">Drag nodes from the toolbox to build your scenario</p>
-              <p className="text-sm">Use scroll to zoom, drag to pan</p>
+              <p className="text-lg font-medium mb-2">Перетащите узлы из панели, чтобы построить сценарий</p>
+              <p className="text-sm">Колесо мыши — масштаб, перетащить — переместить</p>
             </div>
           </div>
         )}

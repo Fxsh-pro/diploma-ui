@@ -20,21 +20,21 @@ export function Toolbox() {
   };
 
   const categoryLabels: Record<string, string> = {
-    system: 'System Nodes',
-    request: 'Request Nodes',
-    logic: 'Logic Nodes',
-    control: 'Control Flow',
+    system: 'Системные узлы',
+    request: 'HTTP-запросы',
+    logic: 'Логика',
+    control: 'Управление потоком',
   };
 
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Toolbox</CardTitle>
+        <CardTitle className="text-base">Панель узлов</CardTitle>
         <div className="relative">
           <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search nodes..."
+            placeholder="Поиск узлов..."
             className="h-8 pl-8 text-sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

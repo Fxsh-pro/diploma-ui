@@ -73,7 +73,7 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
   return (
     <div className="w-80 h-full border-l border-border bg-card">
       <div className="flex items-center justify-between p-4 border-b border-border">
-        <h3 className="font-semibold">Node Properties</h3>
+        <h3 className="font-semibold">Свойства узла</h3>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
@@ -96,7 +96,7 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
             <>
               {/* Method */}
               <div className="space-y-2">
-                <Label htmlFor="method">Method</Label>
+                <Label htmlFor="method">Метод</Label>
                 <Select
                   value={nodeData?.method || 'GET'}
                   onValueChange={(val) => update({ method: val })}
@@ -125,21 +125,21 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
                   onChange={(e) => update({ url: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Use {'${variable}'} for interpolation
+                  Используйте {'${variable}'} для подстановки
                 </p>
               </div>
 
               {/* Headers */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Headers</Label>
+                  <Label>Заголовки</Label>
                   <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={addHeader}>
                     <Plus className="h-3 w-3 mr-1" />
-                    Add
+                    Добавить
                   </Button>
                 </div>
                 {headerEntries.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No headers configured</p>
+                  <p className="text-xs text-muted-foreground">Заголовки не добавлены</p>
                 )}
                 <div className="space-y-2">
                   {headerEntries.map(([key, value], i) => (
@@ -147,13 +147,13 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
                       <Input
                         className="h-7 text-xs flex-1"
                         value={key}
-                        placeholder="Key"
+                        placeholder="Ключ"
                         onChange={(e) => setHeader(key, e.target.value, value)}
                       />
                       <Input
                         className="h-7 text-xs flex-1"
                         value={value}
-                        placeholder="Value"
+                        placeholder="Значение"
                         onChange={(e) => setHeader(key, key, e.target.value)}
                       />
                       <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeHeader(key)}>
@@ -166,7 +166,7 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
 
               {/* Body */}
               <div className="space-y-2">
-                <Label htmlFor="body">Body</Label>
+                <Label htmlFor="body">Тело запроса</Label>
                 <textarea
                   id="body"
                   className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-mono"
@@ -179,20 +179,20 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
               {/* Extract Rules */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Extract Variables</Label>
+                  <Label>Извлечь переменные</Label>
                   <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={addExtractRule}>
                     <Plus className="h-3 w-3 mr-1" />
-                    Add
+                    Добавить
                   </Button>
                 </div>
                 {extractRules.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No variables extracted</p>
+                  <p className="text-xs text-muted-foreground">Переменные не добавлены</p>
                 )}
                 <div className="space-y-3">
                   {extractRules.map((rule, i) => (
                     <div key={i} className="space-y-1.5 p-2 rounded-md border border-border bg-muted/30">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground">Variable #{i + 1}</span>
+                        <span className="text-xs font-medium text-muted-foreground">Переменная #{i + 1}</span>
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeExtractRule(i)}>
                           <X className="h-3 w-3" />
                         </Button>
@@ -200,7 +200,7 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
                       <Input
                         className="h-7 text-xs"
                         value={rule.name}
-                        placeholder="Variable name (e.g. authToken)"
+                        placeholder="Имя переменной (напр. authToken)"
                         onChange={(e) => setExtractRule(i, { name: e.target.value })}
                       />
                       <Select
@@ -211,14 +211,14 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="BODY">Response Body (gjson)</SelectItem>
-                          <SelectItem value="HEADER">Response Header</SelectItem>
+                          <SelectItem value="BODY">Тело ответа (gjson)</SelectItem>
+                          <SelectItem value="HEADER">Заголовок ответа</SelectItem>
                         </SelectContent>
                       </Select>
                       <Input
                         className="h-7 text-xs font-mono"
                         value={rule.path}
-                        placeholder={rule.from === 'BODY' ? 'e.g. data.token' : 'e.g. X-Request-Id'}
+                        placeholder={rule.from === 'BODY' ? 'напр. data.token' : 'напр. X-Request-Id'}
                         onChange={(e) => setExtractRule(i, { path: e.target.value })}
                       />
                     </div>
@@ -230,7 +230,7 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
 
           {nodeType === 'delay' && (
             <div className="space-y-2">
-              <Label htmlFor="duration">Duration (ms)</Label>
+              <Label htmlFor="duration">Длительность (мс)</Label>
               <Input
                 id="duration"
                 type="number"
@@ -240,7 +240,7 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
                 onChange={(e) => update({ duration: e.target.value })}
               />
               <p className="text-xs text-muted-foreground">
-                Simulates user "think time" between actions
+                Имитирует паузу пользователя между действиями
               </p>
             </div>
           )}
@@ -266,29 +266,29 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
               <div className="space-y-3">
                 {/* Auto-injected variable hint */}
                 <div className="rounded-md bg-muted/50 border border-border px-3 py-2 text-xs text-muted-foreground space-y-1">
-                  <p className="font-medium text-foreground">Built-in variables</p>
-                  <p><code className="text-primary">_status</code> — HTTP status code (e.g. <code>200</code>)</p>
-                  <p><code className="text-primary">_latency_ms</code> — response time in ms</p>
-                  <p className="pt-1">Use extract rules on an HTTP node to expose body / header values.</p>
+                  <p className="font-medium text-foreground">Встроенные переменные</p>
+                  <p><code className="text-primary">_status</code> — HTTP-статус (напр. <code>200</code>)</p>
+                  <p><code className="text-primary">_latency_ms</code> — время ответа в мс</p>
+                  <p className="pt-1">Используйте правила извлечения на HTTP-узле для получения значений из тела/заголовков.</p>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <Label>Check Rules</Label>
+                  <Label>Правила проверки</Label>
                   <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={addCheck}>
                     <Plus className="h-3 w-3 mr-1" />
-                    Add
+                    Добавить
                   </Button>
                 </div>
 
                 {checks.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No checks configured</p>
+                  <p className="text-xs text-muted-foreground">Проверки не добавлены</p>
                 )}
 
                 <div className="space-y-3">
                   {checks.map((rule, i) => (
                     <div key={i} className="space-y-1.5 p-2 rounded-md border border-border bg-muted/30">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground">Check #{i + 1}</span>
+                        <span className="text-xs font-medium text-muted-foreground">Проверка #{i + 1}</span>
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeCheck(i)}>
                           <X className="h-3 w-3" />
                         </Button>
@@ -296,7 +296,7 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
                       <Input
                         className="h-7 text-xs font-mono"
                         value={rule.variable}
-                        placeholder="variable (e.g. _status, authToken)"
+                        placeholder="переменная (напр. _status, authToken)"
                         onChange={(e) => setCheck(i, { variable: e.target.value })}
                       />
                       <Select
@@ -307,22 +307,22 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="EQ">== equals</SelectItem>
-                          <SelectItem value="NE">!= not equals</SelectItem>
-                          <SelectItem value="LT">&lt; less than</SelectItem>
-                          <SelectItem value="LE">&lt;= less or equal</SelectItem>
-                          <SelectItem value="GT">&gt; greater than</SelectItem>
-                          <SelectItem value="GE">&gt;= greater or equal</SelectItem>
-                          <SelectItem value="CONTAINS">contains</SelectItem>
-                          <SelectItem value="NOT_CONTAINS">not contains</SelectItem>
-                          <SelectItem value="EXISTS">exists (non-empty)</SelectItem>
+                          <SelectItem value="EQ">== равно</SelectItem>
+                          <SelectItem value="NE">!= не равно</SelectItem>
+                          <SelectItem value="LT">&lt; меньше</SelectItem>
+                          <SelectItem value="LE">&lt;= меньше или равно</SelectItem>
+                          <SelectItem value="GT">&gt; больше</SelectItem>
+                          <SelectItem value="GE">&gt;= больше или равно</SelectItem>
+                          <SelectItem value="CONTAINS">содержит</SelectItem>
+                          <SelectItem value="NOT_CONTAINS">не содержит</SelectItem>
+                          <SelectItem value="EXISTS">существует (не пусто)</SelectItem>
                         </SelectContent>
                       </Select>
                       {needsValue(rule.op) && (
                         <Input
                           className="h-7 text-xs font-mono"
                           value={rule.value ?? ''}
-                          placeholder="expected value"
+                          placeholder="ожидаемое значение"
                           onChange={(e) => setCheck(i, { value: e.target.value })}
                         />
                       )}
@@ -351,20 +351,20 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
             return (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Generate Variables</Label>
+                  <Label>Генерация переменных</Label>
                   <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={addRule}>
                     <Plus className="h-3 w-3 mr-1" />
-                    Add
+                    Добавить
                   </Button>
                 </div>
                 {rules.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No variables configured</p>
+                  <p className="text-xs text-muted-foreground">Переменные не добавлены</p>
                 )}
                 <div className="space-y-3">
                   {rules.map((rule, i) => (
                     <div key={i} className="space-y-1.5 p-2 rounded-md border border-border bg-muted/30">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-muted-foreground">Variable #{i + 1}</span>
+                        <span className="text-xs font-medium text-muted-foreground">Переменная #{i + 1}</span>
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeRule(i)}>
                           <X className="h-3 w-3" />
                         </Button>
@@ -372,7 +372,7 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
                       <Input
                         className="h-7 text-xs"
                         value={rule.name}
-                        placeholder="Variable name (e.g. userId)"
+                        placeholder="Имя переменной (напр. userId)"
                         onChange={(e) => setRule(i, { name: e.target.value })}
                       />
                       <Select
@@ -384,10 +384,10 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="UUID">UUID v4</SelectItem>
-                          <SelectItem value="EMAIL">Random Email</SelectItem>
-                          <SelectItem value="TIMESTAMP">Timestamp (ms)</SelectItem>
-                          <SelectItem value="RANDOM_INT">Random Integer</SelectItem>
-                          <SelectItem value="RANDOM_STRING">Random String</SelectItem>
+                          <SelectItem value="EMAIL">Случайный email</SelectItem>
+                          <SelectItem value="TIMESTAMP">Временная метка (мс)</SelectItem>
+                          <SelectItem value="RANDOM_INT">Случайное целое</SelectItem>
+                          <SelectItem value="RANDOM_STRING">Случайная строка</SelectItem>
                         </SelectContent>
                       </Select>
                       {rule.type === 'RANDOM_INT' && (
@@ -395,14 +395,14 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
                           <Input
                             className="h-7 text-xs"
                             type="number"
-                            placeholder="Min"
+                            placeholder="Мин"
                             value={rule.min ?? ''}
                             onChange={(e) => setRule(i, { min: e.target.value === '' ? undefined : Number(e.target.value) })}
                           />
                           <Input
                             className="h-7 text-xs"
                             type="number"
-                            placeholder="Max"
+                            placeholder="Макс"
                             value={rule.max ?? ''}
                             onChange={(e) => setRule(i, { max: e.target.value === '' ? undefined : Number(e.target.value) })}
                           />
@@ -412,7 +412,7 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
                         <Input
                           className="h-7 text-xs"
                           type="number"
-                          placeholder="Length (default 16)"
+                          placeholder="Длина (по умолчанию 16)"
                           value={rule.length ?? ''}
                           onChange={(e) => setRule(i, { length: e.target.value === '' ? undefined : Number(e.target.value) })}
                         />
@@ -428,7 +428,7 @@ export function PropertiesPanel({ nodeType, nodeData, onClose, onUpdate, onDelet
           <div className="pt-4 border-t border-border">
             <Button variant="destructive" className="w-full gap-2" onClick={onDelete}>
               <Trash2 className="h-4 w-4" />
-              Delete Node
+              Удалить узел
             </Button>
           </div>
         </div>

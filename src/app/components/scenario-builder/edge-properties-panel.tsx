@@ -26,15 +26,15 @@ export function EdgePropertiesPanel({ edge, nodes, onClose, onUpdate, onDelete }
   const toNode = nodes.find((n) => n.id === edge.to);
 
   const fromLabel = fromNode
-    ? fromNode.type === 'start' ? 'Start'
-    : fromNode.type === 'terminal' ? 'End'
+    ? fromNode.type === 'start' ? 'Начало'
+    : fromNode.type === 'terminal' ? 'Конец'
     : fromNode.type === 'http' ? `${fromNode.data?.method || 'GET'} ${fromNode.data?.url || ''}`
     : fromNode.type
     : edge.from;
 
   const toLabel = toNode
-    ? toNode.type === 'start' ? 'Start'
-    : toNode.type === 'terminal' ? 'End'
+    ? toNode.type === 'start' ? 'Начало'
+    : toNode.type === 'terminal' ? 'Конец'
     : toNode.type === 'http' ? `${toNode.data?.method || 'GET'} ${toNode.data?.url || ''}`
     : toNode.type
     : edge.to;
@@ -42,7 +42,7 @@ export function EdgePropertiesPanel({ edge, nodes, onClose, onUpdate, onDelete }
   return (
     <div className="w-80 h-full border-l border-border bg-card">
       <div className="flex items-center justify-between p-4 border-b border-border">
-        <h3 className="font-semibold">Edge Properties</h3>
+        <h3 className="font-semibold">Свойства связи</h3>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
@@ -51,19 +51,19 @@ export function EdgePropertiesPanel({ edge, nodes, onClose, onUpdate, onDelete }
       <ScrollArea className="h-[calc(100%-60px)]">
         <div className="p-4 space-y-4">
           <div className="space-y-2">
-            <Label className="text-muted-foreground text-xs">From</Label>
+            <Label className="text-muted-foreground text-xs">Откуда</Label>
             <div className="text-sm font-mono bg-muted rounded px-2 py-1.5 truncate">{fromLabel}</div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-muted-foreground text-xs">To</Label>
+            <Label className="text-muted-foreground text-xs">Куда</Label>
             <div className="text-sm font-mono bg-muted rounded px-2 py-1.5 truncate">{toLabel}</div>
           </div>
 
           {/* Condition — only relevant for edges from a Check node */}
           {isFromCheck && (
             <div className="space-y-2">
-              <Label>Condition</Label>
+              <Label>Условие</Label>
               <Select
                 value={edge.condition ?? 'ANY'}
                 onValueChange={(val) => onUpdate({ condition: val as EdgeCondition })}
@@ -72,19 +72,19 @@ export function EdgePropertiesPanel({ edge, nodes, onClose, onUpdate, onDelete }
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PASS">✓ PASS — all checks passed</SelectItem>
-                  <SelectItem value="FAIL">✗ FAIL — any check failed</SelectItem>
-                  <SelectItem value="ANY">ANY — always (fallback)</SelectItem>
+                  <SelectItem value="PASS">✓ PASS — все проверки прошли</SelectItem>
+                  <SelectItem value="FAIL">✗ FAIL — есть проваленные проверки</SelectItem>
+                  <SelectItem value="ANY">ANY — всегда (по умолчанию)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                The executor follows PASS/FAIL edges based on the check result. ANY edges are used as fallback if no conditional edge matches.
+                Исполнитель выбирает PASS/FAIL-связи на основе результата проверки. ANY-связь используется, если ни одно условие не подошло.
               </p>
             </div>
           )}
 
           {!isFromCheck && <div className="space-y-2">
-            <Label htmlFor="weight">Weight</Label>
+            <Label htmlFor="weight">Вес</Label>
             <div className="flex items-center gap-2">
               <Input
                 id="weight"
@@ -105,14 +105,14 @@ export function EdgePropertiesPanel({ edge, nodes, onClose, onUpdate, onDelete }
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Probability of this path (0.0–1.0). Outgoing edges from a node should sum to 1.0.
+              Вероятность выбора этого пути (0.0–1.0). Сумма весов исходящих связей должна равняться 1.0.
             </p>
           </div>}
 
           <div className="pt-4 border-t border-border">
             <Button variant="destructive" className="w-full gap-2" onClick={onDelete}>
               <Trash2 className="h-4 w-4" />
-              Delete Edge
+              Удалить связь
             </Button>
           </div>
         </div>
